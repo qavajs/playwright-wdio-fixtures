@@ -1,0 +1,17 @@
+{
+  "name": "playwright-wdio-adapter",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "debug": "playwright test --ui"
+  },
+  "private": true,
+  "devDependencies": {
+    "@playwright/test": "^1.55.1",
+    "@types/node": "^24.5.2"
+  },
+  "dependencies": {
+    "webdriverio": "^9.19.2"
+  }
+}
