@@ -9,10 +9,25 @@
     "debug": "playwright test --ui --project debug",
     "test": "playwright test --project ci"
   },
+  "author": "Oleksandr Halichenko",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/qavajs/playwright-wdio-fixtures.git"
+  },
+  "bugs": {
+    "url": "https://github.com/qavajs/playwright-wdio-fixtures/issues"
+  },
   "devDependencies": {
     "@playwright/test": "^1.55.1",
     "@types/node": "^24.5.2",
     "typescript": "^5.9.2",
     "webdriverio": "^9.19.2"
-  }
+  },
+  "keywords": [
+    "test",
+    "testing",
+    "webdriverio",
+    "playwright"
+  ]
 }
