@@ -1,6 +1,7 @@
 import { test as baseTest, expect as baseExpect, ExpectMatcherState } from '@playwright/test';
 import { remote, Browser, ChainablePromiseElement } from 'webdriverio';
 import { createWdioBrowserProxy } from './WdioBrowser';
+import { randomUUID } from 'node:crypto';
 
 export type WdioRemoteOptions = Parameters<typeof remote>[0];
 
@@ -8,6 +9,7 @@ type WebdriverIOFixture = {
     wdioBrowser: Browser;
     $: Browser['$'];
     $$: Browser['$$'];
+    takeScreenshot: () => Promise<string>;
 }
 
 export type WdioOptions = {
@@ -34,6 +36,28 @@ export const test = baseTest.extend<WebdriverIOFixture & WdioOptions>({
 
     $$: async ({ wdioBrowser }, use) => {
         await use(wdioBrowser.$$.bind(wdioBrowser));
+    },
+
+    takeScreenshot: async ({ wdioBrowser }, use, testInfo) => {
+        const takeScreenshotInternal = async () => {
+            const screenshot = await wdioBrowser.takeScreenshot();
+            const id = randomUUID();
+            const traceEvents: any[] = (testInfo as any)._tracing._traceEvents;
+            const lastEvent = traceEvents.findLast(trace => trace.type === 'after') ?? { endTime: 0 };
+
+            traceEvents.push(
+                {"type":"before","callId":`screenshot@${id}`,"startTime": lastEvent.endTime + 1,"class":"Test","method":"Screenshot","params":{},"stepId":"pw:api@36","pageId":"page@1","beforeSnapshot":`before@screenshot@${id}`}
+            )
+            traceEvents.push(
+                {"type":"after","callId":`screenshot@${id}`,"endTime": lastEvent.endTime + 1,"result":{},"afterSnapshot":`after@screenshot@${id}`}
+            )
+            traceEvents.push(
+                {"type":"frame-snapshot","snapshot":{"callId":`screenshot@${id}`,"snapshotName":`after@screenshot@${id}`,"pageId":"page@1","frameId":"frame@1","frameUrl":"Screenshot","doctype":"html","html":["HTML",{"lang":"en"},["HEAD",{},["BASE",{"href":"Screenshot"}],["META",{"charset":"utf-8"}],["TITLE",{},"Screenshot"]],["BODY",{},["IMG",{"__playwright_current_src__": `data:image/png;base64,${screenshot}`,"alt":"Red dot", "style": "display: block; width: 100vw; height: 100vh; object-fit: cover;"}]]],"viewport":{"width":1280,"height":720},"timestamp":4945.587,"wallTime":1758737023413,"collectionTime":0.6000000238418579,"resourceOverrides":[],"isMainFrame":true}}
+            );
+
+            return screenshot;
+        }
+        await use(takeScreenshotInternal);
     }
 });
 
