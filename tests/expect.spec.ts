@@ -13,8 +13,10 @@ test('toExist', async ({ $, wdioBrowser, takeScreenshot }) => {
 
     const username = $('#user-name');
     await username.addValue('standard_user');
+    await takeScreenshot();
     const password = $('#password');
     await password.addValue('secret_sauce');
+    await takeScreenshot();
     const loginButton = $('#login-button');
     await loginButton.click();
     await expect(username).toBeHidden();

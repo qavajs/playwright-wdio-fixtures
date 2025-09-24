@@ -1,0 +1,56 @@
+import { Browser } from 'webdriverio';
+import { randomUUID } from 'node:crypto';
+import type { TestInfo } from '@playwright/test';
+
+export async function takeScreenshot(this: Browser, testInfo: TestInfo & { _tracing: any }) {
+    const screenshot = await this.takeScreenshot();
+    const id = randomUUID();
+    const traceEvents: any[] = testInfo._tracing._traceEvents;
+    const lastEvent = traceEvents.findLast(trace => trace.type === 'after') ?? {endTime: 0};
+    const parent = traceEvents.findLast(
+        (beforeTrace, index, arr) => beforeTrace.type === 'before' && !arr.some(afterTrace => afterTrace.type === 'after' && beforeTrace.callId === afterTrace.callId)
+    );
+    traceEvents.push({
+        type: 'before',
+        callId: `screenshot@${id}`,
+        startTime: lastEvent.endTime + 1,
+        class: 'Test',
+        method: 'browser.takeScreenshot()',
+        params: {},
+        stepId: id,
+        pageId: 'page@1',
+        parentId: parent?.callId
+    });
+    traceEvents.push({
+        type: 'after',
+        callId: `screenshot@${id}`,
+        endTime: lastEvent.endTime + 1,
+        result: {},
+        afterSnapshot: `after@screenshot@${id}`
+    });
+    traceEvents.push({
+        type: 'frame-snapshot',
+        snapshot: {
+            callId: `screenshot@${id}`,
+            snapshotName: `after@screenshot@${id}`,
+            pageId: 'page@1',
+            frameId: 'frame@1',
+            frameUrl: 'Screenshot',
+            doctype: 'html',
+            html: ['HTML', {'lang': 'en'}, ['HEAD', {}, ['BASE', {'href': 'Screenshot'}], ['META', {'charset': 'utf-8'}], ['TITLE', {}, 'Screenshot']], ['BODY', {}, ['IMG', {
+                '__playwright_current_src__': `data:image/png;base64,${screenshot}`,
+                'alt': 'Red dot',
+                'style': 'display: block; width: 100vw; height: 100vh; object-fit: cover;'
+            }]]],
+            viewport: {
+                'width': 1280, 'height': 720
+            },
+            timestamp: 1,
+            wallTime: 1,
+            collectionTime: 1,
+            resourceOverrides: [],
+            isMainFrame: true
+        }
+    });
+    return screenshot;
+}
