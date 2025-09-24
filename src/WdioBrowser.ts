@@ -20,14 +20,14 @@ const loggableBrowser = [
     'getCookies',
     'getPuppeteer',
     'getWindowSize',
+    'getUrl',
+    'getTitle',
     'keys',
     'mock',
     'mockClearAll',
     'mockRestoreAll',
     'newWindow',
     'pause',
-    'react$',
-    'react$$',
     'relaunchActiveApp',
     'reloadSession',
     'restore',
@@ -110,6 +110,7 @@ const loggableElement = [
 
 function printableArgs(args: any[]) {
     return args.map(arg => {
+        if (typeof arg === 'function') return `function.${arg.name ?? 'anonymous'}`;
         if (Array.isArray(arg)) return `[array]`;
         if (typeof arg === 'object') return `{object}`;
         return args.toString();
@@ -117,17 +118,18 @@ function printableArgs(args: any[]) {
 }
 
 export function createWdioBrowserProxy(browser: Browser, ctx: TestType<any, any>) {
-
     for (const method of loggableBrowser) {
         browser.overwriteCommand(method as any, async function (originalCommand, ...args) {
+            const { file, line, column } = ctx.info();
             const title = `browser.${method}(${printableArgs(args)})`;
-            return ctx.step(title, () => originalCommand(...args), { box: true });
+            return ctx.step(title, () => originalCommand(...args), { location: { file, line, column } });
         });
     }
     for (const method of loggableElement) {
         browser.overwriteCommand(method as any, async function (originalCommand, ...args) {
+            const { file, line, column } = ctx.info();
             const title = `$(${this.selector}).${method}(${printableArgs(args)})`;
-            return ctx.step(title, () => originalCommand(...args), { box: true });
+            return ctx.step(title, () => originalCommand(...args), { location: { file, line, column } });
         }, true);
     }
     return browser;
