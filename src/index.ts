@@ -77,7 +77,7 @@ async function exp(expectContext: ExpectMatcherState, getter: any, expected: any
 }
 
 const isDisplayed = (received: ChainablePromiseElement) => () => received.isDisplayed().then(isVisible => isVisible ? 'visible' : 'hidden');
-const either = (left, right) => (isTrue) => isTrue ? left : right;
+const either = (left: string, right: string) => (isTrue: boolean) => isTrue ? left : right;
 
 export const expect = baseExpect.extend({
     // Element existence and visibility
@@ -117,7 +117,7 @@ export const expect = baseExpect.extend({
     },
 
     async toBeDisplayedInViewport(received: ChainablePromiseElement) {
-        const isInViewport = () => received.isDisplayedInViewport().then(either('in viewport', 'not in viewport'));
+        const isInViewport = () => received.isDisplayed({ withinViewport: true }).then(either('in viewport', 'not in viewport'));
         return exp(this, isInViewport, 'in viewport', {}, 'toBeDisplayedInViewport');
     },
 
@@ -175,7 +175,7 @@ export const expect = baseExpect.extend({
             const className = await received.getAttribute('class') || '';
             return className.split(/\s+/).filter(Boolean);
         };
-        const expectedResult = expectBase => expectBase.toEqual(expect.arrayContaining([expected]));
+        const expectedResult = (expectBase: ReturnType<typeof baseExpect>) => expectBase.toEqual(expect.arrayContaining([expected]));
         return exp(this, hasClass, expectedResult, {}, 'toHaveElementClass');
     },
 

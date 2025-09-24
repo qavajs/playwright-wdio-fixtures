@@ -1,5 +1,5 @@
-import { defineConfig, devices } from '@playwright/test';
-import { WdioOptions } from "./src";
+import { defineConfig } from '@playwright/test';
+import type { WdioOptions } from './src';
 
 /**
  * Read environment variables from file.
@@ -22,7 +22,10 @@ export default defineConfig<WdioOptions>({
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
+  reporter: [
+    ['html', { outputFolder: 'report' }],
+    ['junit', { outputFile: 'report/report.xml' }]
+  ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -35,22 +38,29 @@ export default defineConfig<WdioOptions>({
   /* Configure projects for major browsers */
   projects: [
     {
-      name: 'wdio',
+      name: 'debug',
+      use: {
+        wdioLaunchOptions: {
+          logLevel: 'error',
+          capabilities: {
+            browserName: 'chrome'
+          },
+        }
+      }
+    },
+    {
+      name: 'ci',
       use: {
         wdioLaunchOptions: {
           logLevel: 'error',
           capabilities: {
             browserName: 'chrome',
+            'goog:chromeOptions': {
+              args: ['--headless']
+            }
           },
         }
       }
     },
   ],
-
-  /* Run your local dev server before starting the tests */
-  // webServer: {
-  //   command: 'npm run start',
-  //   url: 'http://127.0.0.1:3000',
-  //   reuseExistingServer: !process.env.CI,
-  // },
 });

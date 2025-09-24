@@ -6,8 +6,8 @@
   "types": "lib/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "debug": "playwright test --ui",
-    "test": "playwright test"
+    "debug": "playwright test --ui --project debug",
+    "test": "playwright test --project ci"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.1",
