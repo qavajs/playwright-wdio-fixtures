@@ -49,7 +49,7 @@ test('toHaveId', async ({ $ }) => {
 });
 
 test('toHaveProperty', async ({ $ }) => {
-    await expect($('#user-name')).toHaveProperty('tagName', 'INPUT');
+    await expect($('#user-name')).toHaveElementProperty('tagName', 'INPUT');
 });
 
 test('toHaveUrl', async ({ wdioBrowser }) => {

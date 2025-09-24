@@ -110,9 +110,9 @@ const loggableElement = [
 
 function printableArgs(args: any[]) {
     return args.map(arg => {
-        if (typeof arg === 'function') return `function.${arg.name ?? 'anonymous'}`;
-        if (Array.isArray(arg)) return `[array]`;
-        if (typeof arg === 'object') return `{object}`;
+        if (typeof arg === 'function') return `function.${arg.name || 'anonymous'}`;
+        if (Array.isArray(arg)) return `array`;
+        if (typeof arg === 'object') return `object`;
         return args.toString();
     }).join(', ');
 }
