@@ -1,17 +1,18 @@
 {
-  "name": "playwright-wdio-adapter",
-  "version": "1.0.0",
+  "name": "@qavajs/playwright-wdio-fixtures",
+  "version": "0.0.1",
   "description": "",
-  "main": "index.js",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
   "scripts": {
-    "debug": "playwright test --ui"
+    "build": "tsc",
+    "debug": "playwright test --ui",
+    "test": "playwright test"
   },
-  "private": true,
   "devDependencies": {
     "@playwright/test": "^1.55.1",
-    "@types/node": "^24.5.2"
-  },
-  "dependencies": {
+    "@types/node": "^24.5.2",
+    "typescript": "^5.9.2",
     "webdriverio": "^9.19.2"
   }
 }

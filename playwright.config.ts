@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
-import {WdioOptions} from "./core";
+import { WdioOptions } from "./src";
 
 /**
  * Read environment variables from file.
@@ -40,7 +40,7 @@ export default defineConfig<WdioOptions>({
         wdioLaunchOptions: {
           logLevel: 'error',
           capabilities: {
-            browserName: 'safari',
+            browserName: 'chrome',
           },
         }
       }
