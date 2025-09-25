@@ -1,12 +1,11 @@
 import { test as baseTest, expect as baseExpect, ExpectMatcherState } from '@playwright/test';
 import { remote, Browser, ChainablePromiseElement } from 'webdriverio';
-import { createWdioBrowserProxy } from './WdioBrowser';
-import { takeScreenshot } from './snapshot';
+import { createWdioDriverProxy } from './WdioBrowser';
 
 export type WdioRemoteOptions = Parameters<typeof remote>[0];
 
 type WebdriverIOFixture = {
-    wdioBrowser: Browser;
+    driver: Browser;
     $: Browser['$'];
     $$: Browser['$$'];
     takeScreenshot: () => Promise<string>;
@@ -24,23 +23,19 @@ export const test = baseTest.extend<WebdriverIOFixture & WdioOptions>({
         }
     }, {option: true, box: true}],
 
-    wdioBrowser: async ({wdioLaunchOptions}, use) => {
+    driver: async ({wdioLaunchOptions}, use) => {
         const browser = await remote(wdioLaunchOptions);
-        await use(createWdioBrowserProxy(browser, test));
+        await use(createWdioDriverProxy(browser, test));
         await browser.deleteSession();
     },
 
-    $: async ({wdioBrowser}, use) => {
-        await use(wdioBrowser.$.bind(wdioBrowser));
+    $: async ({driver}, use) => {
+        await use(driver.$.bind(driver));
     },
 
-    $$: async ({wdioBrowser}, use) => {
-        await use(wdioBrowser.$$.bind(wdioBrowser));
-    },
-
-    takeScreenshot: [async ({wdioBrowser}, use, testInfo) => {
-        await use(takeScreenshot.bind(wdioBrowser, testInfo as any));
-    }, { box: true }]
+    $$: async ({driver}, use) => {
+        await use(driver.$$.bind(driver));
+    }
 });
 
 type PollExpectOptions = {
