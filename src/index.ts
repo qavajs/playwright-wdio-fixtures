@@ -1,6 +1,7 @@
 import { test as baseTest, expect as baseExpect, ExpectMatcherState } from '@playwright/test';
 import { remote, Browser, ChainablePromiseElement } from 'webdriverio';
 import { createWdioBrowserProxy } from './WdioBrowser';
+import { takeScreenshot } from './snapshot';
 
 export type WdioRemoteOptions = Parameters<typeof remote>[0];
 
@@ -8,6 +9,7 @@ type WebdriverIOFixture = {
     wdioBrowser: Browser;
     $: Browser['$'];
     $$: Browser['$$'];
+    takeScreenshot: () => Promise<string>;
 }
 
 export type WdioOptions = {
@@ -20,7 +22,7 @@ export const test = baseTest.extend<WebdriverIOFixture & WdioOptions>({
         capabilities: {
             browserName: 'chrome',
         }
-    }, { option: true, box: true }],
+    }, {option: true, box: true}],
 
     wdioBrowser: async ({wdioLaunchOptions}, use) => {
         const browser = await remote(wdioLaunchOptions);
@@ -28,13 +30,17 @@ export const test = baseTest.extend<WebdriverIOFixture & WdioOptions>({
         await browser.deleteSession();
     },
 
-    $: async ({ wdioBrowser }, use) => {
+    $: async ({wdioBrowser}, use) => {
         await use(wdioBrowser.$.bind(wdioBrowser));
     },
 
-    $$: async ({ wdioBrowser }, use) => {
+    $$: async ({wdioBrowser}, use) => {
         await use(wdioBrowser.$$.bind(wdioBrowser));
-    }
+    },
+
+    takeScreenshot: [async ({wdioBrowser}, use, testInfo) => {
+        await use(takeScreenshot.bind(wdioBrowser, testInfo as any));
+    }, { box: true }]
 });
 
 type PollExpectOptions = {
@@ -123,7 +129,7 @@ export const expect = baseExpect.extend({
     },
 
     async toBeDisplayedInViewport(received: ChainablePromiseElement, options: PollExpectOptions = {}) {
-        const isInViewport = () => received.isDisplayed({ withinViewport: true }).then(either('in viewport', 'not in viewport'));
+        const isInViewport = () => received.isDisplayed({withinViewport: true}).then(either('in viewport', 'not in viewport'));
         return exp(this, isInViewport, 'in viewport', options, 'toBeDisplayedInViewport');
     },
 
@@ -262,7 +268,8 @@ export const expect = baseExpect.extend({
                 const tagName = (await received.getTagName()).toLowerCase();
 
                 switch (tagName) {
-                    case 'button': return 'button';
+                    case 'button':
+                        return 'button';
                     case 'a': {
                         const href = await received.getAttribute('href');
                         return href ? 'link' : 'generic';
@@ -272,35 +279,56 @@ export const expect = baseExpect.extend({
                         switch (type.toLowerCase()) {
                             case 'button':
                             case 'submit':
-                            case 'reset': return 'button';
-                            case 'checkbox': return 'checkbox';
-                            case 'radio': return 'radio';
-                            case 'range': return 'slider';
-                            default: return 'textbox';
+                            case 'reset':
+                                return 'button';
+                            case 'checkbox':
+                                return 'checkbox';
+                            case 'radio':
+                                return 'radio';
+                            case 'range':
+                                return 'slider';
+                            default:
+                                return 'textbox';
                         }
                     }
-                    case 'textarea': return 'textbox';
-                    case 'select': return 'combobox';
-                    case 'img': return 'img';
+                    case 'textarea':
+                        return 'textbox';
+                    case 'select':
+                        return 'combobox';
+                    case 'img':
+                        return 'img';
                     case 'h1':
                     case 'h2':
                     case 'h3':
                     case 'h4':
                     case 'h5':
-                    case 'h6': return 'heading';
-                    case 'nav': return 'navigation';
-                    case 'main': return 'main';
-                    case 'article': return 'article';
-                    case 'section': return 'region';
-                    case 'aside': return 'complementary';
-                    case 'footer': return 'contentinfo';
-                    case 'header': return 'banner';
-                    case 'form': return 'form';
-                    case 'table': return 'table';
+                    case 'h6':
+                        return 'heading';
+                    case 'nav':
+                        return 'navigation';
+                    case 'main':
+                        return 'main';
+                    case 'article':
+                        return 'article';
+                    case 'section':
+                        return 'region';
+                    case 'aside':
+                        return 'complementary';
+                    case 'footer':
+                        return 'contentinfo';
+                    case 'header':
+                        return 'banner';
+                    case 'form':
+                        return 'form';
+                    case 'table':
+                        return 'table';
                     case 'ul':
-                    case 'ol': return 'list';
-                    case 'li': return 'listitem';
-                    default: return 'generic';
+                    case 'ol':
+                        return 'list';
+                    case 'li':
+                        return 'listitem';
+                    default:
+                        return 'generic';
                 }
             } catch {
                 return 'generic';
@@ -357,7 +385,10 @@ export const expect = baseExpect.extend({
         return exp(this, getHeight, expected, options, 'toHaveHeight');
     },
 
-    async toHaveSize(received: ChainablePromiseElement, expected: { width?: number; height?: number }, options: PollExpectOptions = {}) {
+    async toHaveSize(received: ChainablePromiseElement, expected: {
+        width?: number;
+        height?: number
+    }, options: PollExpectOptions = {}) {
         const getSize = async () => {
             const size = await received.getSize();
             const matches = (!expected.width || size.width === expected.width) &&

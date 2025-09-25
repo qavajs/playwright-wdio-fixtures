@@ -4,8 +4,24 @@ test.beforeEach(async ({ wdioBrowser }) => {
     await wdioBrowser.url('https://www.saucedemo.com/');
 });
 
-test('toExist', async ({ $ }) => {
+test('toExist', async ({ $, wdioBrowser, takeScreenshot }) => {
+
+    await wdioBrowser.pause(3000);
+    await takeScreenshot();
+
     await expect($('#user-name')).toExist();
+
+    const username = $('#user-name');
+    await username.addValue('standard_user');
+    await takeScreenshot();
+    const password = $('#password');
+    await password.addValue('secret_sauce');
+    await takeScreenshot();
+    const loginButton = $('#login-button');
+    await loginButton.click();
+    await expect(username).toBeHidden();
+
+    await takeScreenshot();
 });
 
 test('toBeVisible', async ({ $ }) => {
