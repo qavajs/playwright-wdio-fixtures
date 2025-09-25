@@ -2,8 +2,7 @@ import { Browser } from 'webdriverio';
 import { randomUUID } from 'node:crypto';
 import type { TestInfo } from '@playwright/test';
 
-export async function takeScreenshot(this: Browser, testInfo: TestInfo & { _tracing: any }) {
-    const screenshot = await this.takeScreenshot();
+export function attachSnapshot(testInfo: TestInfo & { _tracing: any }, data: string) {
     const id = randomUUID();
     const traceEvents: any[] = testInfo._tracing._traceEvents;
     const lastEvent = traceEvents.findLast(trace => trace.type === 'after') ?? {endTime: 0};
@@ -15,7 +14,7 @@ export async function takeScreenshot(this: Browser, testInfo: TestInfo & { _trac
         callId: `screenshot@${id}`,
         startTime: lastEvent.endTime + 1,
         class: 'Test',
-        method: 'browser.takeScreenshot()',
+        method: 'Attachment',
         params: {},
         stepId: id,
         pageId: 'page@1',
@@ -38,8 +37,7 @@ export async function takeScreenshot(this: Browser, testInfo: TestInfo & { _trac
             frameUrl: 'Screenshot',
             doctype: 'html',
             html: ['HTML', {'lang': 'en'}, ['HEAD', {}, ['BASE', {'href': 'Screenshot'}], ['META', {'charset': 'utf-8'}], ['TITLE', {}, 'Screenshot']], ['BODY', {}, ['IMG', {
-                '__playwright_current_src__': `data:image/png;base64,${screenshot}`,
-                'alt': 'Red dot',
+                '__playwright_current_src__': `data:image/png;base64,${data}`,
                 'style': 'display: block; width: 100vw; height: 100vh; object-fit: cover;'
             }]]],
             viewport: {
@@ -52,5 +50,9 @@ export async function takeScreenshot(this: Browser, testInfo: TestInfo & { _trac
             isMainFrame: true
         }
     });
+}
+export async function takeScreenshot(this: Browser, testInfo: TestInfo & { _tracing: any }) {
+    const screenshot = await this.takeScreenshot();
+    attachSnapshot(testInfo, screenshot);
     return screenshot;
 }

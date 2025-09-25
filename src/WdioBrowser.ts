@@ -1,5 +1,6 @@
 import type { Browser } from 'webdriverio';
 import type { TestType } from '@playwright/test';
+import { attachSnapshot } from './snapshot';
 
 const loggableBrowser = [
     'action',
@@ -117,20 +118,29 @@ function printableArgs(args: any[]) {
     }).join(', ');
 }
 
-export function createWdioBrowserProxy(browser: Browser, ctx: TestType<any, any>) {
+export function createWdioDriverProxy(driver: Browser, ctx: TestType<any, any>) {
     for (const method of loggableBrowser) {
-        browser.overwriteCommand(method as any, async function (originalCommand, ...args) {
+        driver.overwriteCommand(method as any, async function (originalCommand, ...args) {
             const { file, line, column } = ctx.info();
-            const title = `browser.${method}(${printableArgs(args)})`;
+            const title = `driver.${method}(${printableArgs(args)})`;
             return ctx.step(title, () => originalCommand(...args), { location: { file, line, column } });
         });
     }
     for (const method of loggableElement) {
-        browser.overwriteCommand(method as any, async function (originalCommand, ...args) {
+        driver.overwriteCommand(method as any, async function (originalCommand, ...args) {
             const { file, line, column } = ctx.info();
             const title = `$(${this.selector}).${method}(${printableArgs(args)})`;
             return ctx.step(title, () => originalCommand(...args), { location: { file, line, column } });
         }, true);
     }
-    return browser;
+    driver.overwriteCommand('takeScreenshot' as any, async function (originalCommand, ...args) {
+        const { file, line, column } = ctx.info();
+        const title = `driver.takeScreenshot()`;
+        return ctx.step(title, async () => {
+            const base64 = await originalCommand(...args);
+            attachSnapshot(ctx.info() as any, base64);
+            return base64;
+        }, { location: { file, line, column } });
+    });
+    return driver;
 }

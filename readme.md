@@ -88,8 +88,8 @@ In your test files, import `test` and `expect` from the module:
 ```ts
 import { test, expect } from '@qavajs/playwright-wdio-fixtures';
 
-test.beforeEach(async ({ wdioBrowser }) => {
-  await wdioBrowser.url('https://www.saucedemo.com/');
+test.beforeEach(async ({ driver, $ }) => {
+  await driver.url('https://www.saucedemo.com/');
 });
 
 test('login button should be enabled', async ({ $ }) => {
@@ -99,7 +99,7 @@ test('login button should be enabled', async ({ $ }) => {
 
 ### Fixtures
 
-- `wdioBrowser`: WebdriverIO `Browser` instance.
+- `driver`: WebdriverIO `Browser` instance.
 - `$`, `$$`: Element query functions, bound to the browser.
 
 ### Matchers

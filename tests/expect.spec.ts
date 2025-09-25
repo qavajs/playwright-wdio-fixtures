@@ -1,27 +1,25 @@
 import { test, expect } from '../src';
 
-test.beforeEach(async ({ wdioBrowser }) => {
-    await wdioBrowser.url('https://www.saucedemo.com/');
+test.beforeEach(async ({ driver }) => {
+    await driver.url('https://www.saucedemo.com/');
 });
 
-test('toExist', async ({ $, wdioBrowser, takeScreenshot }) => {
-
-    await wdioBrowser.pause(3000);
-    await takeScreenshot();
+test('toExist', async ({ $, driver }) => {
+    await driver.takeScreenshot();
 
     await expect($('#user-name')).toExist();
 
     const username = $('#user-name');
     await username.addValue('standard_user');
-    await takeScreenshot();
+    await driver.takeScreenshot();
     const password = $('#password');
     await password.addValue('secret_sauce');
-    await takeScreenshot();
+    await driver.takeScreenshot();
     const loginButton = $('#login-button');
     await loginButton.click();
     await expect(username).toBeHidden();
 
-    await takeScreenshot();
+    await driver.takeScreenshot();
 });
 
 test('toBeVisible', async ({ $ }) => {
@@ -36,7 +34,7 @@ test('toBeDisabled', async ({ $ }) => {
     await expect($('#login-button')).not.toBeDisabled();
 });
 
-test('toBeFocused', async ({ $, wdioBrowser }) => {
+test('toBeFocused', async ({ $, driver }) => {
     const username = $('#user-name');
     await username.click();
     await expect(username).toBeFocused();
@@ -68,18 +66,18 @@ test('toHaveProperty', async ({ $ }) => {
     await expect($('#user-name')).toHaveElementProperty('tagName', 'INPUT');
 });
 
-test('toHaveUrl', async ({ wdioBrowser }) => {
-    await expect(wdioBrowser).toHaveUrl('https://www.saucedemo.com/');
+test('toHaveUrl', async ({ driver }) => {
+    await expect(driver).toHaveUrl('https://www.saucedemo.com/');
 });
 
-test('toHaveUrlContaining', async ({ wdioBrowser }) => {
-    await expect(wdioBrowser).toHaveUrl(expect.stringContaining('saucedemo'));
+test('toHaveUrlContaining', async ({ driver }) => {
+    await expect(driver).toHaveUrl(expect.stringContaining('saucedemo'));
 });
 
-test('toHaveTitle', async ({ wdioBrowser }) => {
-    await expect(wdioBrowser).toHaveTitle('Swag Labs');
+test('toHaveTitle', async ({ driver }) => {
+    await expect(driver).toHaveTitle('Swag Labs');
 });
 
-test('toHaveTitleContaining', async ({ wdioBrowser }) => {
-    await expect(wdioBrowser).toHaveTitle(expect.stringContaining('Swag'));
+test('toHaveTitleContaining', async ({ driver }) => {
+    await expect(driver).toHaveTitle(expect.stringContaining('Swag'));
 });

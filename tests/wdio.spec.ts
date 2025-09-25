@@ -1,7 +1,7 @@
 import { test, expect } from '../src';
 
-test.beforeEach(async ({ wdioBrowser }) => {
-  await wdioBrowser.url('https://www.saucedemo.com/');
+test.beforeEach(async ({ driver }) => {
+  await driver.url('https://www.saucedemo.com/');
 });
 
 test('click and type', async ({ $ }) => {
@@ -14,37 +14,37 @@ test('click and type', async ({ $ }) => {
   await expect(username).toBeHidden();
 });
 
-test('get url', async ({ wdioBrowser }) => {
-  const url = await wdioBrowser.getUrl();
+test('get url', async ({ driver }) => {
+  const url = await driver.getUrl();
   expect(url).toContain('saucedemo');
 });
 
-test('get title', async ({ wdioBrowser }) => {
-  const title = await wdioBrowser.getTitle();
+test('get title', async ({ driver }) => {
+  const title = await driver.getTitle();
   expect(title).toContain('Swag Labs');
 });
 
 //
 // Browser-level
 //
-test('refresh and back/forward navigation', async ({ wdioBrowser, $ }) => {
+test('refresh and back/forward navigation', async ({ driver, $ }) => {
   const username = $('#user-name');
   await username.addValue('standard_user');
   const password = $('#password');
   await password.addValue('secret_sauce');
   const loginButton = $('#login-button');
   await loginButton.click();
-  await expect(wdioBrowser).toHaveUrl(expect.stringContaining('inventory'));
-  await wdioBrowser.refresh();
-  await expect(wdioBrowser).toHaveUrl(expect.stringContaining('inventory'));
-  await wdioBrowser.back();
-  await expect(wdioBrowser).toHaveUrl('https://www.saucedemo.com/');
-  await wdioBrowser.forward();
-  await expect(wdioBrowser).toHaveUrl(expect.stringContaining('inventory'));
+  await expect(driver).toHaveUrl(expect.stringContaining('inventory'));
+  await driver.refresh();
+  await expect(driver).toHaveUrl(expect.stringContaining('inventory'));
+  await driver.back();
+  await expect(driver).toHaveUrl('https://www.saucedemo.com/');
+  await driver.forward();
+  await expect(driver).toHaveUrl(expect.stringContaining('inventory'));
 });
 
-test('screenshot page', async ({ wdioBrowser }) => {
-  const base64 = await wdioBrowser.takeScreenshot();
+test('screenshot page', async ({ driver }) => {
+  const base64 = await driver.takeScreenshot();
   expect(typeof base64).toEqual('string');
 });
 
