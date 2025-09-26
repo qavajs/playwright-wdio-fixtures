@@ -102,7 +102,7 @@ function printableArgs(args: any[]) {
         if (typeof arg === 'function') return `function.${arg.name || 'anonymous'}`;
         if (Array.isArray(arg)) return `array`;
         if (typeof arg === 'object') return `object`;
-        return args.toString();
+        return arg.toString();
     }).join(', ');
 }
 
