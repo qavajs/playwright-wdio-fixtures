@@ -14,5 +14,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 :microscope: - experimental
 
+## [0.0.2]
+- :rocket: remove logging from sync methods
+
 ## [0.0.1]
 - :rocket: initial implementation

@@ -1,83 +1,63 @@
-import { test, expect } from '../src';
+import { test, expect } from './fixture';
+import { resolve } from 'node:path';
 
 test.beforeEach(async ({ driver }) => {
-    await driver.url('https://www.saucedemo.com/');
+    await driver.url(`file:///${resolve(__dirname, './apps/waits.html')}`);
 });
 
-test('toExist', async ({ $, driver }) => {
-    await driver.takeScreenshot();
-
-    await expect($('#user-name')).toExist();
-
-    const username = $('#user-name');
-    await username.addValue('standard_user');
-    await driver.takeScreenshot();
-    const password = $('#password');
-    await password.addValue('secret_sauce');
-    await driver.takeScreenshot();
-    const loginButton = $('#login-button');
-    await loginButton.click();
-    await expect(username).toBeHidden();
-
-    await driver.takeScreenshot();
+test('toExist', async ({ app }) => {
+    await expect(app.visibleElement).toExist();
 });
 
-test('toBeVisible', async ({ $ }) => {
-    await expect($('#user-name')).toBeVisible();
+test('toBeVisible', async ({ app }) => {
+    await expect(app.visibleElement).toBeVisible();
 });
 
-test('toBeEnabled', async ({ $ }) => {
-    await expect($('#login-button')).toBeEnabled();
+test('toBeEnabled', async ({ app }) => {
+    await expect(app.enabledButton).toBeEnabled();
 });
 
-test('toBeDisabled', async ({ $ }) => {
-    await expect($('#login-button')).not.toBeDisabled();
+test('toBeDisabled', async ({ app }) => {
+    await expect(app.disabledButton).toBeDisabled();
 });
 
-test('toBeFocused', async ({ $, driver }) => {
-    const username = $('#user-name');
-    await username.click();
-    await expect(username).toBeFocused();
+test('toBeFocused', async ({ app, driver }) => {
+    await app.loadingInput.click();
+    await expect(app.loadingInput).toBeFocused();
 });
 
-test('toHaveText', async ({ $ }) => {
-    await expect($('#login_credentials h4')).toHaveText(expect.stringMatching(/Accepted usernames/i));
+test('toHaveText', async ({ app }) => {
+    await expect(app.visibleElement).toHaveText(expect.stringMatching(/Visible/i));
 });
 
-test('toHaveValue', async ({ $ }) => {
-    const username = $('#user-name');
-    await username.setValue('standard_user');
-    await expect(username).toHaveValue('standard_user');
+test('toHaveValue', async ({ app }) => {
+    await expect(app.loadingInput).toHaveValue('100%');
 });
 
-test('toHaveAttribute', async ({ $ }) => {
-    await expect($('#login-button')).toHaveAttribute('type', 'submit');
+test('toHaveAttribute', async ({ app }) => {
+    await expect(app.enabledButton).toHaveAttribute('id', 'enabledButton');
 });
 
-test('toHaveElementClass', async ({ $ }) => {
-    await expect($('#login-button')).toHaveElementClass('submit-button');
+test('toHaveElementClass', async ({ app }) => {
+    await expect(app.enabledButton).toHaveElementClass('test');
 });
 
-test('toHaveId', async ({ $ }) => {
-    await expect($('#user-name')).toHaveId('user-name');
+test('toHaveId', async ({ app }) => {
+    await expect(app.enabledButton).toHaveId('enabledButton');
 });
 
-test('toHaveProperty', async ({ $ }) => {
-    await expect($('#user-name')).toHaveElementProperty('tagName', 'INPUT');
+test('toHaveProperty', async ({ app }) => {
+    await expect(app.enabledButton).toHaveElementProperty('tagName', 'BUTTON');
 });
 
 test('toHaveUrl', async ({ driver }) => {
-    await expect(driver).toHaveUrl('https://www.saucedemo.com/');
+    await expect(driver).toHaveUrl(expect.stringMatching(/waits/i));
 });
 
 test('toHaveUrlContaining', async ({ driver }) => {
-    await expect(driver).toHaveUrl(expect.stringContaining('saucedemo'));
+    await expect(driver).toHaveUrl(expect.stringContaining('waits'));
 });
 
 test('toHaveTitle', async ({ driver }) => {
-    await expect(driver).toHaveTitle('Swag Labs');
-});
-
-test('toHaveTitleContaining', async ({ driver }) => {
-    await expect(driver).toHaveTitle(expect.stringContaining('Swag'));
+    await expect(driver).toHaveTitle(expect.stringContaining('title changed'));
 });

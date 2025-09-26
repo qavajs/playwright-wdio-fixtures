@@ -3,12 +3,7 @@ import type { TestType } from '@playwright/test';
 import { attachSnapshot } from './snapshot';
 
 const loggableBrowser = [
-    'action',
-    'actions',
     'addInitScript',
-    'call',
-    'custom$',
-    'custom$$',
     'debug',
     'deepLink',
     'deleteCookies',
@@ -80,20 +75,13 @@ const loggableElement = [
     'isStable',
     'longPress',
     'moveTo',
-    'nextElement',
-    'parentElement',
     'pinch',
-    'previousElement',
-    'react$',
-    'react$$',
     'saveScreenshot',
     'scrollIntoView',
     'selectByAttribute',
     'selectByIndex',
     'selectByVisibleText',
     'setValue',
-    'shadow$',
-    'shadow$$',
     'tap',
     'touchAction',
     'waitForClickable',
@@ -120,20 +108,24 @@ function printableArgs(args: any[]) {
 
 export function createWdioDriverProxy(driver: Browser, ctx: TestType<any, any>) {
     for (const method of loggableBrowser) {
-        driver.overwriteCommand(method as any, async function (originalCommand, ...args) {
+        driver.overwriteCommand(method as any, function (originalCommand, ...args) {
             const { file, line, column } = ctx.info();
             const title = `driver.${method}(${printableArgs(args)})`;
-            return ctx.step(title, () => originalCommand(...args), { location: { file, line, column } });
+            const result = originalCommand(...args);
+            if (!result.then) return result;
+            return ctx.step(title, () => result, { location: { file, line, column } });
         });
     }
     for (const method of loggableElement) {
-        driver.overwriteCommand(method as any, async function (originalCommand, ...args) {
+        driver.overwriteCommand(method as any, function (originalCommand, ...args) {
             const { file, line, column } = ctx.info();
             const title = `$(${this.selector}).${method}(${printableArgs(args)})`;
-            return ctx.step(title, () => originalCommand(...args), { location: { file, line, column } });
+            const result = originalCommand(...args);
+            if (!result.then) return result;
+            return ctx.step(title, () => result, { location: { file, line, column } });
         }, true);
     }
-    driver.overwriteCommand('takeScreenshot' as any, async function (originalCommand, ...args) {
+    driver.overwriteCommand('takeScreenshot' as any, function (originalCommand, ...args) {
         const { file, line, column } = ctx.info();
         const title = `driver.takeScreenshot()`;
         return ctx.step(title, async () => {
