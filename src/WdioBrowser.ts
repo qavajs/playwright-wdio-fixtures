@@ -1,6 +1,6 @@
 import type { Browser } from 'webdriverio';
 import type { TestType } from '@playwright/test';
-import { attachSnapshot } from './snapshot';
+import { attachScreenshot } from './snapshot';
 
 const loggableBrowser = [
     'addInitScript',
@@ -99,9 +99,11 @@ const loggableElement = [
 
 function printableArgs(args: any[]) {
     return args.map(arg => {
-        if (typeof arg === 'function') return `function.${arg.name || 'anonymous'}`;
+        if (typeof arg === 'function') return `function.${arg.name || `anonymous`}`;
         if (Array.isArray(arg)) return `array`;
+        if (arg === null) return `null`;
         if (typeof arg === 'object') return `object`;
+        if (arg === undefined) return `undefined`;
         return arg?.toString();
     }).join(', ');
 }
@@ -130,7 +132,7 @@ export function createWdioDriverProxy(driver: Browser, ctx: TestType<any, any>) 
         const title = `driver.takeScreenshot()`;
         return ctx.step(title, async () => {
             const base64 = await originalCommand(...args);
-            attachSnapshot(ctx.info() as any, base64);
+            attachScreenshot(ctx.info() as any, base64);
             return base64;
         }, { location: { file, line, column } });
     });

@@ -1,8 +1,8 @@
-import { Browser } from 'webdriverio';
+import type { Browser } from 'webdriverio';
 import { randomUUID } from 'node:crypto';
 import type { TestInfo } from '@playwright/test';
 
-export function attachSnapshot(testInfo: TestInfo & { _tracing: any }, data: string) {
+export function attachScreenshot(testInfo: TestInfo & { _tracing: any }, data: string) {
     const id = randomUUID();
     const traceEvents: any[] = testInfo._tracing._traceEvents;
     const lastEvent = traceEvents.findLast(trace => trace.type === 'after') ?? {endTime: 0};
@@ -36,10 +36,18 @@ export function attachSnapshot(testInfo: TestInfo & { _tracing: any }, data: str
             frameId: 'frame@1',
             frameUrl: 'Screenshot',
             doctype: 'html',
-            html: ['HTML', {'lang': 'en'}, ['HEAD', {}, ['BASE', {'href': 'Screenshot'}], ['META', {'charset': 'utf-8'}], ['TITLE', {}, 'Screenshot']], ['BODY', {}, ['IMG', {
-                '__playwright_current_src__': `data:image/png;base64,${data}`,
-                'style': 'display: block; width: 100vw; height: 100vh; object-fit: cover;'
-            }]]],
+            html: ['HTML', {'lang': 'en'},
+                ['HEAD', {},
+                    ['BASE', {'href': 'Screenshot'}],
+                    ['META', {'charset': 'utf-8'}],
+                    ['TITLE', {}, 'Screenshot']
+                ],
+                ['BODY', {'style': `margin: 0; display:flex; justify-content:center; align-items:center; height:100vh;`},
+                    ['DIV', {'style': `display: flex; justify-content: center; align-items: center; height: 100vh;`},
+                        ['IMG', { '__playwright_current_src__': `data:image/png;base64,${data}`, 'style': 'display: block; object-fit: cover; height: 100%; width: 100%;' }]
+                    ],
+                ]
+            ],
             viewport: {
                 'width': 1280, 'height': 720
             },
@@ -53,6 +61,6 @@ export function attachSnapshot(testInfo: TestInfo & { _tracing: any }, data: str
 }
 export async function takeScreenshot(this: Browser, testInfo: TestInfo & { _tracing: any }) {
     const screenshot = await this.takeScreenshot();
-    attachSnapshot(testInfo, screenshot);
+    attachScreenshot(testInfo, screenshot);
     return screenshot;
 }

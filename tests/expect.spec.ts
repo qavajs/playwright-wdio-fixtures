@@ -25,7 +25,7 @@ test('toBeDisabled', async ({ app }) => {
     await expect(app.disabledButton).toBeDisabled();
 });
 
-test('toBeFocused', async ({ app, driver }) => {
+test('toBeFocused', async ({ app }) => {
     await app.loadingInput.click();
     await expect(app.loadingInput).toBeFocused();
 });
