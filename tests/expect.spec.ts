@@ -13,6 +13,10 @@ test('toBeVisible', async ({ app }) => {
     await expect(app.visibleElement).toBeVisible();
 });
 
+test('toBeDisplayedInViewport', async ({ app }) => {
+    await expect(app.visibleElement).toBeDisplayedInViewport();
+});
+
 test('toBeEnabled', async ({ app }) => {
     await expect(app.enabledButton).toBeEnabled();
 });
@@ -21,7 +25,7 @@ test('toBeDisabled', async ({ app }) => {
     await expect(app.disabledButton).toBeDisabled();
 });
 
-test('toBeFocused', async ({ app, driver }) => {
+test('toBeFocused', async ({ app }) => {
     await app.loadingInput.click();
     await expect(app.loadingInput).toBeFocused();
 });

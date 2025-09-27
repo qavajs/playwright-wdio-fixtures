@@ -1,5 +1,5 @@
-import {test, expect} from './fixture';
-import {resolve} from 'node:path';
+import { test, expect } from './fixture';
+import { resolve } from 'node:path';
 
 test.beforeEach(async ({driver}) => {
     await driver.url(`file:///${resolve(__dirname, './apps/actions.html')}`);
