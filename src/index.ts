@@ -8,7 +8,6 @@ type WebdriverIOFixture = {
     driver: Browser;
     $: Browser['$'];
     $$: Browser['$$'];
-    takeScreenshot: () => Promise<string>;
 }
 
 export type WdioOptions = {
@@ -21,7 +20,7 @@ export const test = baseTest.extend<WebdriverIOFixture & WdioOptions>({
         capabilities: {
             browserName: 'chrome',
         }
-    }, {option: true, box: true}],
+    }, { option: true, box: true }],
 
     driver: async ({wdioLaunchOptions}, use) => {
         const browser = await remote(wdioLaunchOptions);
@@ -44,7 +43,7 @@ type PollExpectOptions = {
     intervals?: number[]
 }
 
-async function exp(expectContext: ExpectMatcherState, getter: any, expected: any, options: PollExpectOptions, assertionName: any) {
+async function verify(expectContext: ExpectMatcherState, getter: any, expected: any, options: PollExpectOptions, assertionName: any) {
     let pass: boolean;
     let matcherResult: any;
     try {
@@ -89,78 +88,78 @@ const either = (left: string, right: string) => (isTrue: boolean) => isTrue ? le
 export const expect = baseExpect.extend({
     // Element existence and visibility
     async toBeDisplayed(received: ChainablePromiseElement, options: PollExpectOptions = {}) {
-        return exp(this, isDisplayed(received), 'visible', options, 'toBeDisplayed');
+        return verify(this, isDisplayed(received), 'visible', options, 'toBeDisplayed');
     },
 
     async toExist(received: ChainablePromiseElement, options: PollExpectOptions = {}) {
         const isExisting = () => received.isExisting().then(either('exist', 'not exist'));
-        return exp(this, isExisting, 'exist', options, 'toExist');
+        return verify(this, isExisting, 'exist', options, 'toExist');
     },
 
     async toBePresent(received: ChainablePromiseElement, options: PollExpectOptions = {}) {
         const isExisting = () => received.isExisting().then(either('exist', 'not exist'));
-        return exp(this, isExisting, 'exist', options, 'toBePresent');
+        return verify(this, isExisting, 'exist', options, 'toBePresent');
     },
 
     async toBeExisting(received: ChainablePromiseElement, options: PollExpectOptions = {}) {
         const isExisting = () => received.isExisting().then(either('exist', 'not exist'));
-        return exp(this, isExisting, 'exist', options, 'toBeExisting');
+        return verify(this, isExisting, 'exist', options, 'toBeExisting');
     },
 
     async toBeFocused(received: ChainablePromiseElement, options: PollExpectOptions = {}) {
         const isFocused = () => received.isFocused().then(either('focused', 'not focused'));
-        return exp(this, isFocused, 'focused', options, 'toBeFocused');
+        return verify(this, isFocused, 'focused', options, 'toBeFocused');
     },
 
     async toBeVisible(received: ChainablePromiseElement, options: PollExpectOptions = {}) {
-        return exp(this, isDisplayed(received), 'visible', options, 'toBeVisible');
+        return verify(this, isDisplayed(received), 'visible', options, 'toBeVisible');
     },
 
     async toBeHidden(received: ChainablePromiseElement, options: PollExpectOptions = {}) {
         const isHidden = (received: ChainablePromiseElement) => async () => {
             return (await received.isExisting()) ? isDisplayed(received)() : 'hidden';
         }
-        return exp(this, isHidden(received), 'hidden', options, 'toBeHidden');
+        return verify(this, isHidden(received), 'hidden', options, 'toBeHidden');
     },
 
     async toBeDisplayedInViewport(received: ChainablePromiseElement, options: PollExpectOptions = {}) {
-        const isInViewport = () => received.isDisplayed({withinViewport: true}).then(either('in viewport', 'not in viewport'));
-        return exp(this, isInViewport, 'in viewport', options, 'toBeDisplayedInViewport');
+        const isInViewport = () => received.isDisplayed({ withinViewport: true }).then(either('in viewport', 'not in viewport'));
+        return verify(this, isInViewport, 'in viewport', options, 'toBeDisplayedInViewport');
     },
 
     // Element state
     async toBeClickable(received: ChainablePromiseElement, options: PollExpectOptions = {}) {
         const isClickable = () => received.isClickable().then(either('clickable', 'not clickable'));
-        return exp(this, isClickable, 'clickable', options, 'toBeClickable');
+        return verify(this, isClickable, 'clickable', options, 'toBeClickable');
     },
 
     async toBeDisabled(received: ChainablePromiseElement, options: PollExpectOptions = {}) {
         const isDisabled = () => received.isEnabled().then(either('enabled', 'disabled'));
-        return exp(this, isDisabled, 'disabled', options, 'toBeDisabled');
+        return verify(this, isDisabled, 'disabled', options, 'toBeDisabled');
     },
 
     async toBeEnabled(received: ChainablePromiseElement, options: PollExpectOptions = {}) {
         const isEnabled = () => received.isEnabled().then(either('enabled', 'disabled'));
-        return exp(this, isEnabled, 'enabled', options, 'toBeEnabled');
+        return verify(this, isEnabled, 'enabled', options, 'toBeEnabled');
     },
 
     async toBeSelected(received: ChainablePromiseElement, options: PollExpectOptions = {}) {
         const isSelected = () => received.isSelected().then(either('selected', 'not selected'));
-        return exp(this, isSelected, 'selected', options, 'toBeSelected');
+        return verify(this, isSelected, 'selected', options, 'toBeSelected');
     },
 
     async toBeChecked(received: ChainablePromiseElement, options: PollExpectOptions = {}) {
         const isSelected = () => received.isSelected().then(either('checked', 'unchecked'));
-        return exp(this, isSelected, 'checked', options, 'toBeChecked');
+        return verify(this, isSelected, 'checked', options, 'toBeChecked');
     },
 
     // Attributes and properties
     async toHaveAttribute(received: ChainablePromiseElement, attr: string, expected?: any, options: PollExpectOptions = {}) {
-        return exp(this, () => received.getAttribute(attr), expected, options, 'toHaveAttribute');
+        return verify(this, () => received.getAttribute(attr), expected, options, 'toHaveAttribute');
     },
 
     async toHaveAttr(received: ChainablePromiseElement, attr: string, expected?: any, options: PollExpectOptions = {}) {
-        return exp(this, () => received.getAttribute(attr), expected, options, 'toHaveAttr');
+        return verify(this, () => received.getAttribute(attr), expected, options, 'toHaveAttr');
     },
 
     async toHaveElementClass(received: ChainablePromiseElement, expected: string | string[], options: PollExpectOptions = {}) {
@@ -169,36 +168,36 @@ export const expect = baseExpect.extend({
             return className.split(/\s+/).filter(Boolean);
         };
         const expectedResult = (expectBase: ReturnType<typeof baseExpect>) => expectBase.toEqual(expect.arrayContaining([expected]));
-        return exp(this, hasClass, expectedResult, options, 'toHaveElementClass');
+        return verify(this, hasClass, expectedResult, options, 'toHaveElementClass');
     },
 
     async toHaveElementProperty(received: ChainablePromiseElement, prop: string, expected?: any, options: PollExpectOptions = {}) {
-        return exp(this, () => received.getProperty(prop), expected, options, 'toHaveElementProperty');
+        return verify(this, () => received.getProperty(prop), expected, options, 'toHaveElementProperty');
     },
 
     async toHaveValue(received: ChainablePromiseElement, expected?: string, options: PollExpectOptions = {}) {
-        return exp(this, () => received.getValue(), expected, options, 'toHaveValue');
+        return verify(this, () => received.getValue(), expected, options, 'toHaveValue');
     },
 
     async toHaveHref(received: ChainablePromiseElement, expected?: string, options: PollExpectOptions = {}) {
-        return exp(this, () => received.getAttribute('href'), expected, options, 'toHaveHref');
+        return verify(this, () => received.getAttribute('href'), expected, options, 'toHaveHref');
     },
 
     async toHaveLink(received: ChainablePromiseElement, expected?: string, options: PollExpectOptions = {}) {
-        return exp(this, () => received.getAttribute('href'), expected, options, 'toHaveLink');
+        return verify(this, () => received.getAttribute('href'), expected, options, 'toHaveLink');
     },
 
     async toHaveId(received: ChainablePromiseElement, expected?: string, options: PollExpectOptions = {}) {
-        return exp(this, () => received.getAttribute('id'), expected, options, 'toHaveId');
+        return verify(this, () => received.getAttribute('id'), expected, options, 'toHaveId');
     },
 
     // Content matchers
     async toHaveText(received: ChainablePromiseElement, expected?: any, options: PollExpectOptions = {}) {
-        return exp(this, () => received.getText(), expected, options, 'toHaveText');
+        return verify(this, () => received.getText(), expected, options, 'toHaveText');
     },
 
     async toHaveHTML(received: ChainablePromiseElement, expected?: any, options: PollExpectOptions = {}) {
-        return exp(this, () => received.getHTML(), expected, options, 'toHaveHTML');
+        return verify(this, () => received.getHTML(), expected, options, 'toHaveHTML');
     },
 
     // Accessibility matchers
@@ -246,10 +245,10 @@ export const expect = baseExpect.extend({
                 const label = await getComputedLabel();
                 return label !== '' ? 'has computed label' : 'does not have computed label';
             };
-            return exp(this, hasLabel, 'has computed label', options, 'toHaveComputedLabel');
+            return verify(this, hasLabel, 'has computed label', options, 'toHaveComputedLabel');
         }
 
-        return exp(this, getComputedLabel, expected, options, 'toHaveComputedLabel');
+        return verify(this, getComputedLabel, expected, options, 'toHaveComputedLabel');
     },
 
     async toHaveComputedRole(received: ChainablePromiseElement, expected?: string, options: PollExpectOptions = {}) {
@@ -335,32 +334,10 @@ export const expect = baseExpect.extend({
                 const role = await getComputedRole();
                 return role !== 'generic' ? 'has computed role' : 'does not have computed role';
             };
-            return exp(this, hasRole, 'has computed role', options, 'toHaveComputedRole');
+            return verify(this, hasRole, 'has computed role', options, 'toHaveComputedRole');
         }
 
-        return exp(this, getComputedRole, expected, options, 'toHaveComputedRole');
-    },
-
-    // Element structure and children
-    async toHaveChildren(received: ChainablePromiseElement, expected?: number, options: PollExpectOptions = {}) {
-        const getChildrenCount = async () => {
-            try {
-                const children = await received.$$('> *');
-                return children.length;
-            } catch {
-                return 0;
-            }
-        };
-
-        if (expected === undefined) {
-            const hasChildren = async () => {
-                const count = await getChildrenCount();
-                return count > 0 ? 'has children' : 'does not have children';
-            };
-            return exp(this, hasChildren, 'has children', options, 'toHaveChildren');
-        }
-
-        return exp(this, getChildrenCount, expected, options, 'toHaveChildren');
+        return verify(this, getComputedRole, expected, options, 'toHaveComputedRole');
     },
 
     // Size matchers
@@ -369,7 +346,7 @@ export const expect = baseExpect.extend({
             const size = await received.getSize();
             return size.width;
         };
-        return exp(this, getWidth, expected, options, 'toHaveWidth');
+        return verify(this, getWidth, expected, options, 'toHaveWidth');
     },
 
     async toHaveHeight(received: ChainablePromiseElement, expected: number, options: PollExpectOptions = {}) {
@@ -377,7 +354,7 @@ export const expect = baseExpect.extend({
             const size = await received.getSize();
             return size.height;
         };
-        return exp(this, getHeight, expected, options, 'toHaveHeight');
+        return verify(this, getHeight, expected, options, 'toHaveHeight');
     },
 
     async toHaveSize(received: ChainablePromiseElement, expected: {
@@ -390,21 +367,21 @@ export const expect = baseExpect.extend({
                 (!expected.height || size.height === expected.height);
             return matches ? 'has size' : 'does not have size';
         };
-        return exp(this, getSize, 'has size', options, 'toHaveSize');
+        return verify(this, getSize, 'has size', options, 'toHaveSize');
     },
 
     // Collection matchers
     async toBeElementsArrayOfSize(received: ChainablePromiseElement[], expected: number, options: PollExpectOptions = {}) {
         const getLength = () => Promise.resolve(received.length);
-        return exp(this, getLength, expected, options, 'toBeElementsArrayOfSize');
+        return verify(this, getLength, expected, options, 'toBeElementsArrayOfSize');
     },
 
     // Browser matchers - keeping the original ones
     async toHaveUrl(received: Browser, expected: any, options: PollExpectOptions = {}): Promise<any> {
-        return exp(this, () => received.getUrl(), expected, options, 'toHaveUrl');
+        return verify(this, () => received.getUrl(), expected, options, 'toHaveUrl');
     },
 
     async toHaveTitle(received: Browser, expected: any, options: PollExpectOptions = {}): Promise<any> {
-        return exp(this, () => received.getTitle(), expected, options, 'toHaveTitle');
+        return verify(this, () => received.getTitle(), expected, options, 'toHaveTitle');
     }
 });

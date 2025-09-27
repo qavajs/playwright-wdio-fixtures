@@ -13,6 +13,10 @@ test('toBeVisible', async ({ app }) => {
     await expect(app.visibleElement).toBeVisible();
 });
 
+test('toBeDisplayedInViewport', async ({ app }) => {
+    await expect(app.visibleElement).toBeDisplayedInViewport();
+});
+
 test('toBeEnabled', async ({ app }) => {
     await expect(app.enabledButton).toBeEnabled();
 });
