@@ -10,29 +10,56 @@ type WebdriverIOFixture = {
     $$: Browser['$$'];
 }
 
-export type WdioOptions = {
-    wdioLaunchOptions: WdioRemoteOptions,
+type WebdriverIOWorkerFixture = {
+    wdioLaunchOptions: WdioRemoteOptions & AdditionalWdioOptions;
+    workerDriver: Browser | null;
 }
 
-export const test = baseTest.extend<WebdriverIOFixture & WdioOptions>({
+export type WdioOptions = {
+    wdioLaunchOptions: WdioRemoteOptions & AdditionalWdioOptions;
+}
+
+type AdditionalWdioOptions = {
+    /**
+     * Defines whether browser should be created as worker fixture
+     * and reused across all tests in the current worker.
+     */
+    reuseSession?: boolean;
+};
+
+export const test = baseTest.extend<WebdriverIOFixture, WebdriverIOWorkerFixture & WdioOptions>({
     wdioLaunchOptions: [{
         logLevel: 'warn',
         capabilities: {
             browserName: 'chrome',
         }
-    }, { option: true, box: true }],
+    }, { option: true, box: true, scope: 'worker' }],
 
-    driver: async ({wdioLaunchOptions}, use) => {
-        const browser = await remote(wdioLaunchOptions);
-        await use(createWdioDriverProxy(browser, test));
-        await browser.deleteSession();
+    workerDriver: [async ({ wdioLaunchOptions }, use) => {
+        if (wdioLaunchOptions.reuseSession) {
+            const browser = await remote(wdioLaunchOptions);
+            await use(createWdioDriverProxy(browser, test));
+            await browser.deleteSession();
+        } else {
+            await use(null);
+        }
+    }, { scope: 'worker' }],
+
+    driver: async ({ wdioLaunchOptions, workerDriver }, use) => {
+        if (wdioLaunchOptions.reuseSession && workerDriver) {
+            await use(workerDriver);
+        } else {
+            const browser = await remote(wdioLaunchOptions);
+            await use(createWdioDriverProxy(browser, test));
+            await browser.deleteSession();
+        }
     },
 
-    $: async ({driver}, use) => {
+    $: async ({ driver }, use) => {
         await use(driver.$.bind(driver));
     },
 
-    $$: async ({driver}, use) => {
+    $$: async ({ driver }, use) => {
         await use(driver.$$.bind(driver));
     }
 });
