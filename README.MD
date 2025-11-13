@@ -135,6 +135,27 @@ test('should login successfully', async ({ $ }) => {
 });
 ```
 
+## Reuse Session
+In this mode browser will be created in worker scope and shared between steps
+```typescript
+{
+    projects: [
+        {
+            name: 'debug',
+            use: {
+                reuseSession: true,
+                wdioLaunchOptions: {
+                    logLevel: 'error',
+                    capabilities: {
+                        browserName: 'chrome'
+                    },
+                }
+            }
+        }
+    ]
+}
+```
+
 ## Scripts
 
 - `npm run build` — Compile TypeScript to `lib/`

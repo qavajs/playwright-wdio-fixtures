@@ -77,7 +77,7 @@ test('action', async ({app, driver}) => {
         .up('s')
         .down('t')
         .up('t')
-        .perform()
+        .perform();
     expect(await app.input.getValue()).toEqual('test');
 });
 
