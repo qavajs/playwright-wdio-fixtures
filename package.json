@@ -1,6 +1,6 @@
 {
   "name": "@qavajs/playwright-wdio-fixtures",
-  "version": "0.0.4",
+  "version": "1.0.0",
   "description": "collection of webdriverio fixtures for playwright test runner",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -19,10 +19,10 @@
     "url": "https://github.com/qavajs/playwright-wdio-fixtures/issues"
   },
   "devDependencies": {
-    "@playwright/test": "^1.56.1",
-    "@types/node": "^24.10.1",
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^25.2.1",
     "typescript": "^5.9.3",
-    "webdriverio": "^9.20.0"
+    "webdriverio": "^9.23.3"
   },
   "keywords": [
     "test",
