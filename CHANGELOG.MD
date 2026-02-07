@@ -13,6 +13,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 :pencil: - chore
 
 :microscope: - experimental
+
+## [1.0.0]
+- :rocket: Release 1.0.0
+
 ## [0.0.4]
 - :rocket: added capability of `reuseSession` to reuse same browser across all tests in current worker
 ```typescript
