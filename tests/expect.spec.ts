@@ -65,3 +65,46 @@ test('toHaveUrlContaining', async ({ driver }) => {
 test('toHaveTitle', async ({ driver }) => {
     await expect(driver).toHaveTitle(expect.stringContaining('title changed'));
 });
+
+// Aliases of toBeDisplayed / toBeVisible
+test('toBeDisplayed', async ({ app }) => {
+    await expect(app.visibleElement).toBeDisplayed();
+});
+
+// Aliases of toExist
+test('toBePresent', async ({ app }) => {
+    await expect(app.presentElement).toBePresent();
+});
+
+test('toBeExisting', async ({ app }) => {
+    await expect(app.presentElement).toBeExisting();
+});
+
+// Hidden — element starts visible, transitions to hidden
+test('toBeHidden', async ({ app }) => {
+    await expect(app.hiddenElement).toBeHidden();
+});
+
+// Negated matchers exercise the isNot polling path
+test('not.toBeDisplayed', async ({ app }) => {
+    await expect(app.hiddenElement).not.toBeDisplayed();
+});
+
+test('not.toExist', async ({ app }) => {
+    await expect(app.detachElement).not.toExist();
+});
+
+// Collection matcher
+test('toBeElementsArrayOfSize', async ({ $$ }) => {
+    const buttons = await $$('button');
+    await expect(buttons).toBeElementsArrayOfSize(2);
+});
+
+// Accessibility matchers — delegate to native WDIO getComputedLabel / getComputedRole
+test('toHaveComputedLabel', async ({ app }) => {
+    await expect(app.loadingInput).toHaveComputedLabel('Loading Input');
+});
+
+test('toHaveComputedRole', async ({ app }) => {
+    await expect(app.enabledButton).toHaveComputedRole('button');
+});

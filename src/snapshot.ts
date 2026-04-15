@@ -15,6 +15,7 @@ import type { TestInfo } from '@playwright/test';
  * @param data - Base64-encoded PNG image data (without the `data:image/png;base64,` prefix).
  */
 export function attachScreenshot(testInfo: TestInfo & { _tracing: any }, data: string) {
+    try {
     const id = randomUUID();
     const traceEvents: any[] = testInfo._tracing._traceEvents;
     const lastEvent = traceEvents.findLast(trace => trace.type === 'after') ?? {endTime: 0};
@@ -70,6 +71,9 @@ export function attachScreenshot(testInfo: TestInfo & { _tracing: any }, data: s
             isMainFrame: true
         }
     });
+    } catch {
+        console.warn('Playwright internal tracing API unavailable; screenshot attachment skipped.');
+    }
 }
 /**
  * Takes a screenshot via WebdriverIO and attaches it to the Playwright trace.

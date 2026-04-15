@@ -136,7 +136,7 @@ type PollExpectOptions = {
  * @param assertionName - The matcher name used in failure messages (e.g. `'toBeDisplayed'`).
  * @returns A Playwright custom-matcher result object.
  */
-async function verify(expectContext: ExpectMatcherState, getter: any, expected: any, options: PollExpectOptions, assertionName: any) {
+async function verify(expectContext: ExpectMatcherState, getter: () => Promise<unknown>, expected: unknown, options: PollExpectOptions, assertionName: string) {
     let pass: boolean;
     let matcherResult: any;
     try {
@@ -316,7 +316,8 @@ export const expect = baseExpect.extend({
             const className = await received.getAttribute('class') || '';
             return className.split(/\s+/).filter(Boolean);
         };
-        const expectedResult = (expectBase: ReturnType<typeof baseExpect>) => expectBase.toEqual(expect.arrayContaining([expected]));
+        const classes = Array.isArray(expected) ? expected : [expected];
+        const expectedResult = (expectBase: ReturnType<typeof baseExpect>) => expectBase.toEqual(expect.arrayContaining(classes));
         return verify(this, hasClass, expectedResult, options, 'toHaveElementClass');
     },
 
@@ -351,142 +352,25 @@ export const expect = baseExpect.extend({
 
     // Accessibility matchers
     async toHaveComputedLabel(received: ChainablePromiseElement, expected?: string, options: PollExpectOptions = {}) {
-        const getComputedLabel = async () => {
-            try {
-                // Try common accessibility label attributes
-                let label = await received.getAttribute('aria-label');
-                if (label) return label;
-
-                label = await received.getAttribute('aria-labelledby');
-                if (label) {
-                    // Get text from referenced element(s)
-                    try {
-                        const labelElement = await received.$(`#${label}`);
-                        return await labelElement.getText();
-                    } catch {
-                        return label;
-                    }
-                }
-
-                // For form elements, check associated label
-                const tagName = await received.getTagName();
-                if (['input', 'textarea', 'select'].includes(tagName.toLowerCase())) {
-                    const id = await received.getAttribute('id');
-                    if (id) {
-                        try {
-                            const labelElement = await received.$(`label[for="${id}"]`);
-                            return await labelElement.getText();
-                        } catch {
-                            // Continue to fallback
-                        }
-                    }
-                }
-
-                // Fallback to element text
-                return await received.getText();
-            } catch {
-                return '';
-            }
-        };
-
         if (expected === undefined) {
             const hasLabel = async () => {
-                const label = await getComputedLabel();
-                return label !== '' ? 'has computed label' : 'does not have computed label';
+                const label = await received.getComputedLabel();
+                return label ? 'has computed label' : 'does not have computed label';
             };
             return verify(this, hasLabel, 'has computed label', options, 'toHaveComputedLabel');
         }
-
-        return verify(this, getComputedLabel, expected, options, 'toHaveComputedLabel');
+        return verify(this, () => received.getComputedLabel(), expected, options, 'toHaveComputedLabel');
     },
 
     async toHaveComputedRole(received: ChainablePromiseElement, expected?: string, options: PollExpectOptions = {}) {
-        const getComputedRole = async () => {
-            try {
-                // First check explicit role attribute
-                let role = await received.getAttribute('role');
-                if (role) return role;
-
-                // Fallback to implicit role based on tag name and attributes
-                const tagName = (await received.getTagName()).toLowerCase();
-
-                switch (tagName) {
-                    case 'button':
-                        return 'button';
-                    case 'a': {
-                        const href = await received.getAttribute('href');
-                        return href ? 'link' : 'generic';
-                    }
-                    case 'input': {
-                        const type = await received.getAttribute('type') || 'text';
-                        switch (type.toLowerCase()) {
-                            case 'button':
-                            case 'submit':
-                            case 'reset':
-                                return 'button';
-                            case 'checkbox':
-                                return 'checkbox';
-                            case 'radio':
-                                return 'radio';
-                            case 'range':
-                                return 'slider';
-                            default:
-                                return 'textbox';
-                        }
-                    }
-                    case 'textarea':
-                        return 'textbox';
-                    case 'select':
-                        return 'combobox';
-                    case 'img':
-                        return 'img';
-                    case 'h1':
-                    case 'h2':
-                    case 'h3':
-                    case 'h4':
-                    case 'h5':
-                    case 'h6':
-                        return 'heading';
-                    case 'nav':
-                        return 'navigation';
-                    case 'main':
-                        return 'main';
-                    case 'article':
-                        return 'article';
-                    case 'section':
-                        return 'region';
-                    case 'aside':
-                        return 'complementary';
-                    case 'footer':
-                        return 'contentinfo';
-                    case 'header':
-                        return 'banner';
-                    case 'form':
-                        return 'form';
-                    case 'table':
-                        return 'table';
-                    case 'ul':
-                    case 'ol':
-                        return 'list';
-                    case 'li':
-                        return 'listitem';
-                    default:
-                        return 'generic';
-                }
-            } catch {
-                return 'generic';
-            }
-        };
-
         if (expected === undefined) {
             const hasRole = async () => {
-                const role = await getComputedRole();
-                return role !== 'generic' ? 'has computed role' : 'does not have computed role';
+                const role = await received.getComputedRole();
+                return role && role !== 'generic' ? 'has computed role' : 'does not have computed role';
             };
             return verify(this, hasRole, 'has computed role', options, 'toHaveComputedRole');
         }
-
-        return verify(this, getComputedRole, expected, options, 'toHaveComputedRole');
+        return verify(this, () => received.getComputedRole(), expected, options, 'toHaveComputedRole');
     },
 
     // Size matchers
@@ -511,12 +395,13 @@ export const expect = baseExpect.extend({
         height?: number
     }, options: PollExpectOptions = {}) {
         const getSize = async () => {
-            const size = await received.getSize();
-            const matches = (!expected.width || size.width === expected.width) &&
-                (!expected.height || size.height === expected.height);
-            return matches ? 'has size' : 'does not have size';
+            const { width, height } = await received.getSize();
+            const result: { width?: number; height?: number } = {};
+            if (expected.width !== undefined) result.width = width;
+            if (expected.height !== undefined) result.height = height;
+            return result;
         };
-        return verify(this, getSize, 'has size', options, 'toHaveSize');
+        return verify(this, getSize, expected, options, 'toHaveSize');
     },
 
     // Collection matchers

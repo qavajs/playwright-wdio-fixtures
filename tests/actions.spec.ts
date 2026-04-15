@@ -118,3 +118,72 @@ test('switchFrame', async ({ driver, app }) => {
     await driver.switchFrame('frame.html');
     await expect(app.frameElement).toBeVisible();
 });
+
+test('switchFrame nested', async ({ driver, app }) => {
+    await driver.switchFrame('frame.html');
+    await driver.switchFrame('innerFrame.html');
+    await expect(app.innerFrameElement).toBeVisible();
+});
+
+test('switchWindow', async ({ driver }) => {
+    await driver.newWindow('about:blank', { type: 'tab' });
+    await driver.switchWindow('about:blank');
+    expect(await driver.getUrl()).toBe('about:blank');
+});
+
+test('doubleClick', async ({ app }) => {
+    await app.button.doubleClick();
+    await expect(app.action).toHaveText('dblclick');
+});
+
+test('moveTo', async ({ app }) => {
+    await app.buttonHover.moveTo();
+    await expect(app.action).toHaveText('hover');
+});
+
+test('setValue', async ({ app }) => {
+    await app.input.setValue('setValue test');
+    await expect(app.action).toHaveText('setValue test');
+});
+
+test('clearValue', async ({ app }) => {
+    await app.input.setValue('to be cleared');
+    await app.input.clearValue();
+    expect(await app.input.getValue()).toBe('');
+});
+
+test('getValue', async ({ app }) => {
+    await app.input.setValue('get me');
+    expect(await app.input.getValue()).toBe('get me');
+});
+
+test('selectByVisibleText', async ({ app }) => {
+    await app.select.selectByVisibleText('two');
+    await expect(app.action).toHaveText('select two');
+});
+
+test('selectByIndex', async ({ app }) => {
+    await app.select.selectByIndex(2);
+    await expect(app.action).toHaveText('select three');
+});
+
+test('getTagName', async ({ app }) => {
+    expect(await app.button.getTagName()).toBe('button');
+});
+
+test('getHTML', async ({ app }) => {
+    expect(await app.button.getHTML()).toContain('Click Me!');
+});
+
+test('getProperty', async ({ app }) => {
+    expect(await app.button.getProperty('tagName')).toBe('BUTTON');
+});
+
+test('isFocused', async ({ app }) => {
+    await app.input.click();
+    expect(await app.input.isFocused()).toBe(true);
+});
+
+test('isClickable', async ({ app }) => {
+    expect(await app.button.isClickable()).toBe(true);
+});
