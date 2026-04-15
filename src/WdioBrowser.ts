@@ -97,6 +97,20 @@ const loggableElement = [
     'getAttribute',
 ];
 
+/**
+ * Serialises an argument list into a human-readable string for use in step titles.
+ *
+ * Each argument is converted to a concise token:
+ * - Functions  → `function.<name>` (or `function.anonymous`)
+ * - Arrays     → `array`
+ * - `null`     → `null`
+ * - Objects    → `object`
+ * - `undefined`→ `undefined`
+ * - Everything else → `String(arg)`
+ *
+ * @param args - The raw arguments passed to a WebdriverIO command.
+ * @returns A comma-separated string suitable for embedding in a trace step title.
+ */
 function printableArgs(args: any[]) {
     return args.map(arg => {
         if (typeof arg === 'function') return `function.${arg.name || `anonymous`}`;
@@ -108,6 +122,28 @@ function printableArgs(args: any[]) {
     }).join(', ');
 }
 
+/**
+ * Wraps a WebdriverIO `Browser` instance so that its commands surface as named steps in the
+ * Playwright test report and trace viewer.
+ *
+ * For every command listed in {@link loggableBrowser} and {@link loggableElement}, the original
+ * implementation is replaced via `browser.overwriteCommand` with a wrapper that:
+ *
+ * 1. Reads the current source location from `ctx.info()`.
+ * 2. Builds a human-readable title (`driver.<method>(args)` or `$(<selector>).<method>(args)`).
+ * 3. Delegates to `ctx.step()`, which registers the call as a named step in Playwright's trace.
+ *
+ * The `takeScreenshot` command receives additional handling: after the screenshot is taken the
+ * resulting base64 data is forwarded to {@link attachScreenshot} so it appears as an image frame
+ * inside the Playwright trace viewer.
+ *
+ * Commands whose return value is not a Promise are passed through immediately without wrapping, so
+ * synchronous accessors are not affected.
+ *
+ * @param driver - The WebdriverIO `Browser` instance to instrument.
+ * @param ctx - The Playwright `TestType` context used for step registration and location info.
+ * @returns The same `driver` instance, mutated in place with overwritten commands.
+ */
 export function createWdioDriverProxy(driver: Browser, ctx: TestType<any, any>) {
     for (const method of loggableBrowser) {
         driver.overwriteCommand(method as any, function (originalCommand, ...args) {
