@@ -2,19 +2,34 @@ import { test as baseTest, expect as baseExpect, ExpectMatcherState } from '@pla
 import { remote, Browser, ChainablePromiseElement } from 'webdriverio';
 import { createWdioDriverProxy } from './WdioBrowser';
 
+/** Options accepted by `webdriverio.remote()`. Re-exported for consumer convenience. */
 export type WdioRemoteOptions = Parameters<typeof remote>[0];
 
+/** Per-test fixtures injected by the extended `test` object. */
 type WebdriverIOFixture = {
+    /** The instrumented WebdriverIO `Browser` instance for the current test. */
     driver: Browser;
+    /** Shorthand for `driver.$` — queries a single element. */
     $: Browser['$'];
+    /** Shorthand for `driver.$$` — queries multiple elements. */
     $$: Browser['$$'];
 }
 
+/** Worker-scoped fixtures managed internally by the extended `test` object. */
 type WebdriverIOWorkerFixture = {
+    /** Merged launch options (including {@link AdditionalWdioOptions}) used for this worker. */
     wdioLaunchOptions: WdioRemoteOptions & AdditionalWdioOptions;
+    /**
+     * A shared `Browser` instance reused across all tests in the worker, or `null` when session
+     * reuse is disabled.
+     */
     workerDriver: Browser | null;
 }
 
+/**
+ * Public options type exposed to consumers who want to override `wdioLaunchOptions` in their
+ * Playwright config or `test.use()` calls.
+ */
 export type WdioOptions = {
     wdioLaunchOptions: WdioRemoteOptions & AdditionalWdioOptions;
 }
@@ -27,6 +42,35 @@ type AdditionalWdioOptions = {
     reuseSession?: boolean;
 };
 
+/**
+ * Playwright `test` extended with WebdriverIO browser fixtures.
+ *
+ * Provides three fixtures out of the box:
+ *
+ * - **`driver`** — a WebdriverIO `Browser` instrumented to emit Playwright trace steps.
+ *   When `wdioLaunchOptions.reuseSession` is `true` the worker-level `workerDriver` is returned
+ *   instead of creating a new session per test.
+ * - **`$`** — bound alias of `driver.$`.
+ * - **`$$`** — bound alias of `driver.$$`.
+ *
+ * Two worker-scoped fixtures are also registered:
+ *
+ * - **`wdioLaunchOptions`** (option) — merged `WdioRemoteOptions` + `AdditionalWdioOptions`.
+ *   Defaults to `{ logLevel: 'warn', capabilities: { browserName: 'chrome' } }`.
+ * - **`workerDriver`** — a shared session created once per worker when `reuseSession` is `true`,
+ *   cleaned up via `browser.deleteSession()` after all worker tests complete.
+ *
+ * @example
+ * ```ts
+ * import { test } from '@qavajs/playwright-wdio-fixtures';
+ *
+ * test('navigate', async ({ driver, $ }) => {
+ *   await driver.url('https://example.com');
+ *   const heading = await $('h1');
+ *   await expect(heading).toHaveText('Example Domain');
+ * });
+ * ```
+ */
 export const test = baseTest.extend<WebdriverIOFixture, WebdriverIOWorkerFixture & WdioOptions>({
     wdioLaunchOptions: [{
         logLevel: 'warn',
@@ -64,13 +108,35 @@ export const test = baseTest.extend<WebdriverIOFixture, WebdriverIOWorkerFixture
     }
 });
 
+/** Options forwarded to `expect.poll()` for all polling-based matchers. */
 type PollExpectOptions = {
+    /** Custom failure message prepended to the assertion error. */
     message?: string,
+    /** Maximum time in milliseconds to keep polling before the assertion fails. */
     timeout?: number,
+    /** Custom polling intervals in milliseconds between retries. */
     intervals?: number[]
 }
 
-async function verify(expectContext: ExpectMatcherState, getter: any, expected: any, options: PollExpectOptions, assertionName: any) {
+/**
+ * Core polling assertion helper used by every custom matcher in this module.
+ *
+ * Wraps `baseExpect.poll(getter, options)` so that the assertion retries until `getter` returns a
+ * value that satisfies `expected`. Handles the `isNot` flag transparently so negated assertions
+ * (e.g. `expect(el).not.toBeDisplayed()`) work correctly.
+ *
+ * When `expected` is a function it is called with the `expect` chain as its argument, enabling
+ * matchers like `toHaveElementClass` to compose higher-order assertions (e.g. `arrayContaining`).
+ * When `expected` is a plain value the assertion falls back to `.toEqual(expected)`.
+ *
+ * @param expectContext - The `ExpectMatcherState` provided by Playwright to the custom matcher.
+ * @param getter - An async factory that reads the current element/browser state.
+ * @param expected - The expected value, or a function that performs a custom assertion.
+ * @param options - Polling options (timeout, intervals, message).
+ * @param assertionName - The matcher name used in failure messages (e.g. `'toBeDisplayed'`).
+ * @returns A Playwright custom-matcher result object.
+ */
+async function verify(expectContext: ExpectMatcherState, getter: () => Promise<unknown>, expected: unknown, options: PollExpectOptions, assertionName: string) {
     let pass: boolean;
     let matcherResult: any;
     try {
@@ -109,9 +175,65 @@ async function verify(expectContext: ExpectMatcherState, getter: any, expected: 
     };
 }
 
+/** Returns a polling getter that resolves to `'visible'` or `'hidden'` for an element. */
 const isDisplayed = (received: ChainablePromiseElement) => () => received.isDisplayed().then(isVisible => isVisible ? 'visible' : 'hidden');
+
+/**
+ * Curried helper that maps a boolean to one of two string tokens.
+ *
+ * Used to convert WebdriverIO boolean results (e.g. `isEnabled()`) into the string values that
+ * `verify` compares against (e.g. `'enabled'` / `'disabled'`).
+ */
 const either = (left: string, right: string) => (isTrue: boolean) => isTrue ? left : right;
 
+/**
+ * Playwright `expect` extended with WebdriverIO-compatible element and browser matchers.
+ *
+ * All matchers use `expect.poll()` internally so they retry until the assertion passes or the
+ * configured `timeout` is exceeded. Every matcher accepts an optional {@link PollExpectOptions}
+ * as its last argument.
+ *
+ * **Element existence and visibility**
+ * - `toBeDisplayed` / `toBeVisible` — element is visible in the DOM.
+ * - `toExist` / `toBePresent` / `toBeExisting` — element exists in the DOM.
+ * - `toBeHidden` — element is hidden or absent from the DOM.
+ * - `toBeDisplayedInViewport` — element is visible within the current viewport.
+ *
+ * **Element state**
+ * - `toBeClickable` — element is clickable.
+ * - `toBeEnabled` / `toBeDisabled` — element enabled/disabled state.
+ * - `toBeFocused` — element has focus.
+ * - `toBeSelected` / `toBeChecked` — element selection/checked state.
+ *
+ * **Attributes and properties**
+ * - `toHaveAttribute` / `toHaveAttr` — element has an attribute with an optional expected value.
+ * - `toHaveElementClass` — element's `class` attribute contains the expected class name(s).
+ * - `toHaveElementProperty` — element has a DOM property with an optional expected value.
+ * - `toHaveValue` — form element has the expected value.
+ * - `toHaveHref` / `toHaveLink` — anchor element has the expected `href`.
+ * - `toHaveId` — element has the expected `id` attribute.
+ *
+ * **Content**
+ * - `toHaveText` — element's text content matches the expected value.
+ * - `toHaveHTML` — element's inner HTML matches the expected value.
+ *
+ * **Accessibility**
+ * - `toHaveComputedLabel` — element has the expected accessible label (derived from `aria-label`,
+ *   `aria-labelledby`, associated `<label>`, or visible text).
+ * - `toHaveComputedRole` — element has the expected ARIA role (explicit `role` attribute or
+ *   implicit role inferred from the tag name).
+ *
+ * **Size**
+ * - `toHaveWidth` / `toHaveHeight` — element has the expected dimension in pixels.
+ * - `toHaveSize` — element has both expected width and height.
+ *
+ * **Collections**
+ * - `toBeElementsArrayOfSize` — an array of elements has the expected length.
+ *
+ * **Browser**
+ * - `toHaveUrl` — current page URL matches the expected value.
+ * - `toHaveTitle` — current page title matches the expected value.
+ */
 export const expect = baseExpect.extend({
     // Element existence and visibility
     async toBeDisplayed(received: ChainablePromiseElement, options: PollExpectOptions = {}) {
@@ -194,7 +316,8 @@ export const expect = baseExpect.extend({
             const className = await received.getAttribute('class') || '';
             return className.split(/\s+/).filter(Boolean);
         };
-        const expectedResult = (expectBase: ReturnType<typeof baseExpect>) => expectBase.toEqual(expect.arrayContaining([expected]));
+        const classes = Array.isArray(expected) ? expected : [expected];
+        const expectedResult = (expectBase: ReturnType<typeof baseExpect>) => expectBase.toEqual(expect.arrayContaining(classes));
         return verify(this, hasClass, expectedResult, options, 'toHaveElementClass');
     },
 
@@ -229,142 +352,25 @@ export const expect = baseExpect.extend({
 
     // Accessibility matchers
     async toHaveComputedLabel(received: ChainablePromiseElement, expected?: string, options: PollExpectOptions = {}) {
-        const getComputedLabel = async () => {
-            try {
-                // Try common accessibility label attributes
-                let label = await received.getAttribute('aria-label');
-                if (label) return label;
-
-                label = await received.getAttribute('aria-labelledby');
-                if (label) {
-                    // Get text from referenced element(s)
-                    try {
-                        const labelElement = await received.$(`#${label}`);
-                        return await labelElement.getText();
-                    } catch {
-                        return label;
-                    }
-                }
-
-                // For form elements, check associated label
-                const tagName = await received.getTagName();
-                if (['input', 'textarea', 'select'].includes(tagName.toLowerCase())) {
-                    const id = await received.getAttribute('id');
-                    if (id) {
-                        try {
-                            const labelElement = await received.$(`label[for="${id}"]`);
-                            return await labelElement.getText();
-                        } catch {
-                            // Continue to fallback
-                        }
-                    }
-                }
-
-                // Fallback to element text
-                return await received.getText();
-            } catch {
-                return '';
-            }
-        };
-
         if (expected === undefined) {
             const hasLabel = async () => {
-                const label = await getComputedLabel();
-                return label !== '' ? 'has computed label' : 'does not have computed label';
+                const label = await received.getComputedLabel();
+                return label ? 'has computed label' : 'does not have computed label';
             };
             return verify(this, hasLabel, 'has computed label', options, 'toHaveComputedLabel');
         }
-
-        return verify(this, getComputedLabel, expected, options, 'toHaveComputedLabel');
+        return verify(this, () => received.getComputedLabel(), expected, options, 'toHaveComputedLabel');
     },
 
     async toHaveComputedRole(received: ChainablePromiseElement, expected?: string, options: PollExpectOptions = {}) {
-        const getComputedRole = async () => {
-            try {
-                // First check explicit role attribute
-                let role = await received.getAttribute('role');
-                if (role) return role;
-
-                // Fallback to implicit role based on tag name and attributes
-                const tagName = (await received.getTagName()).toLowerCase();
-
-                switch (tagName) {
-                    case 'button':
-                        return 'button';
-                    case 'a': {
-                        const href = await received.getAttribute('href');
-                        return href ? 'link' : 'generic';
-                    }
-                    case 'input': {
-                        const type = await received.getAttribute('type') || 'text';
-                        switch (type.toLowerCase()) {
-                            case 'button':
-                            case 'submit':
-                            case 'reset':
-                                return 'button';
-                            case 'checkbox':
-                                return 'checkbox';
-                            case 'radio':
-                                return 'radio';
-                            case 'range':
-                                return 'slider';
-                            default:
-                                return 'textbox';
-                        }
-                    }
-                    case 'textarea':
-                        return 'textbox';
-                    case 'select':
-                        return 'combobox';
-                    case 'img':
-                        return 'img';
-                    case 'h1':
-                    case 'h2':
-                    case 'h3':
-                    case 'h4':
-                    case 'h5':
-                    case 'h6':
-                        return 'heading';
-                    case 'nav':
-                        return 'navigation';
-                    case 'main':
-                        return 'main';
-                    case 'article':
-                        return 'article';
-                    case 'section':
-                        return 'region';
-                    case 'aside':
-                        return 'complementary';
-                    case 'footer':
-                        return 'contentinfo';
-                    case 'header':
-                        return 'banner';
-                    case 'form':
-                        return 'form';
-                    case 'table':
-                        return 'table';
-                    case 'ul':
-                    case 'ol':
-                        return 'list';
-                    case 'li':
-                        return 'listitem';
-                    default:
-                        return 'generic';
-                }
-            } catch {
-                return 'generic';
-            }
-        };
-
         if (expected === undefined) {
             const hasRole = async () => {
-                const role = await getComputedRole();
-                return role !== 'generic' ? 'has computed role' : 'does not have computed role';
+                const role = await received.getComputedRole();
+                return role && role !== 'generic' ? 'has computed role' : 'does not have computed role';
             };
             return verify(this, hasRole, 'has computed role', options, 'toHaveComputedRole');
         }
-
-        return verify(this, getComputedRole, expected, options, 'toHaveComputedRole');
+        return verify(this, () => received.getComputedRole(), expected, options, 'toHaveComputedRole');
     },
 
     // Size matchers
@@ -389,12 +395,13 @@ export const expect = baseExpect.extend({
         height?: number
     }, options: PollExpectOptions = {}) {
         const getSize = async () => {
-            const size = await received.getSize();
-            const matches = (!expected.width || size.width === expected.width) &&
-                (!expected.height || size.height === expected.height);
-            return matches ? 'has size' : 'does not have size';
+            const { width, height } = await received.getSize();
+            const result: { width?: number; height?: number } = {};
+            if (expected.width !== undefined) result.width = width;
+            if (expected.height !== undefined) result.height = height;
+            return result;
         };
-        return verify(this, getSize, 'has size', options, 'toHaveSize');
+        return verify(this, getSize, expected, options, 'toHaveSize');
     },
 
     // Collection matchers

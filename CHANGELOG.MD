@@ -14,6 +14,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 :microscope: - experimental
 
+## [1.1.0]
+- :beetle: fixed `toHaveElementClass` incorrectly wrapping array input in a second array, causing multi-class assertions to always fail
+- :beetle: fixed `toHaveSize` returning a string token instead of actual pixel dimensions, making failure messages uninformative
+- :rocket: `toHaveComputedLabel` and `toHaveComputedRole` now delegate to WebdriverIO's native `getComputedLabel()` / `getComputedRole()` instead of reimplementing ARIA computation manually
+
 ## [1.0.0]
 - :rocket: Release 1.0.0
 

@@ -171,6 +171,22 @@ export default class App {
     get scrollElement() {
         return this.$('#scrollElement');
     }
+
+    get checkbox() {
+        return this.$('#checkbox');
+    }
+
+    get unchecked() {
+        return this.$('#unchecked');
+    }
+
+    get link() {
+        return this.$('#link');
+    }
+
+    get sizedBox() {
+        return this.$('#sizedBox');
+    }
 }
 
 export const expect = baseExpect;
