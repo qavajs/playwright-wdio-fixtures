@@ -14,6 +14,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 :microscope: - experimental
 
+## [1.2.0]
+- :rocket: improved step title logging in `createWdioDriverProxy`:
+  - `printableArgs` now renders small arrays inline (e.g. `["foo", "bar"]`) and compact JSON for small objects instead of the generic `array` / `object` tokens
+  - added `printableSelector` helper that safely serialises complex or object-typed element selectors
+  - WebdriverIO commands are now invoked *inside* the `ctx.step` callback so Playwright trace timing accurately covers the full command execution
+
 ## [1.1.0]
 - :beetle: fixed `toHaveElementClass` incorrectly wrapping array input in a second array, causing multi-class assertions to always fail
 - :beetle: fixed `toHaveSize` returning a string token instead of actual pixel dimensions, making failure messages uninformative

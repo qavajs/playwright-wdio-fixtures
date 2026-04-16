@@ -102,24 +102,60 @@ const loggableElement = [
  *
  * Each argument is converted to a concise token:
  * - Functions  → `function.<name>` (or `function.anonymous`)
- * - Arrays     → `array`
+ * - Arrays     → inline items when ≤ 3 elements, `array[N]` otherwise
  * - `null`     → `null`
- * - Objects    → `object`
+ * - Objects    → compact JSON when the serialised form is ≤ 60 chars, `object` otherwise
  * - `undefined`→ `undefined`
  * - Everything else → `String(arg)`
  *
  * @param args - The raw arguments passed to a WebdriverIO command.
  * @returns A comma-separated string suitable for embedding in a trace step title.
  */
-function printableArgs(args: any[]) {
+function printableArgs(args: any[]): string {
     return args.map(arg => {
-        if (typeof arg === 'function') return `function.${arg.name || `anonymous`}`;
-        if (Array.isArray(arg)) return `array`;
-        if (arg === null) return `null`;
-        if (typeof arg === 'object') return `object`;
-        if (arg === undefined) return `undefined`;
-        return arg?.toString();
+        if (typeof arg === 'function') {
+            const functionString = arg.toString();
+            if (functionString.length <= 60 && !functionString.includes('\n')) return functionString;
+            return `function.${arg.name || 'anonymous'}`;
+        }
+        if (Array.isArray(arg)) {
+            if (arg.length === 0) return '[]';
+            if (arg.length <= 3) return `[${arg.map(i => typeof i === 'string' ? `"${i}"` : String(i)).join(', ')}]`;
+            return `array[${arg.length}]`;
+        }
+        if (arg === null) return 'null';
+        if (arg === undefined) return 'undefined';
+        if (typeof arg === 'object') {
+            try {
+                const json = JSON.stringify(arg);
+                return json.length <= 60 ? json : 'object';
+            } catch {
+                return 'object';
+            }
+        }
+        return JSON.stringify(String(arg));
     }).join(', ');
+}
+
+/**
+ * Converts an element selector (string, object, or unknown) to a readable string for step titles.
+ *
+ * - Strings are returned as-is.
+ * - Objects are serialised as compact JSON when ≤ 60 chars, otherwise `element`.
+ * - Anything else is coerced via `String()`.
+ *
+ * @param selector - The raw selector value from a WebdriverIO element.
+ * @returns A human-readable selector string.
+ */
+function printableSelector(selector: unknown): string {
+    if (typeof selector === 'string') return JSON.stringify(selector);
+    if (selector === null || selector === undefined) return String(selector);
+    try {
+        const json = JSON.stringify(selector);
+        return json.length <= 60 ? json : 'element';
+    } catch {
+        return 'element';
+    }
 }
 
 /**
@@ -131,14 +167,14 @@ function printableArgs(args: any[]) {
  *
  * 1. Reads the current source location from `ctx.info()`.
  * 2. Builds a human-readable title (`driver.<method>(args)` or `$(<selector>).<method>(args)`).
+ *    Arguments are formatted by {@link printableArgs}; element selectors by {@link printableSelector}.
  * 3. Delegates to `ctx.step()`, which registers the call as a named step in Playwright's trace.
+ *    The original command is invoked *inside* the step callback so that step timing accurately
+ *    covers the full command execution.
  *
  * The `takeScreenshot` command receives additional handling: after the screenshot is taken the
  * resulting base64 data is forwarded to {@link attachScreenshot} so it appears as an image frame
  * inside the Playwright trace viewer.
- *
- * Commands whose return value is not a Promise are passed through immediately without wrapping, so
- * synchronous accessors are not affected.
  *
  * @param driver - The WebdriverIO `Browser` instance to instrument.
  * @param ctx - The Playwright `TestType` context used for step registration and location info.
@@ -149,18 +185,14 @@ export function createWdioDriverProxy(driver: Browser, ctx: TestType<any, any>) 
         driver.overwriteCommand(method as any, function (originalCommand, ...args) {
             const { file, line, column } = ctx.info();
             const title = `driver.${method}(${printableArgs(args)})`;
-            const result = originalCommand(...args);
-            if (!result.then) return result;
-            return ctx.step(title, () => result, { location: { file, line, column } });
+            return ctx.step(title, () => originalCommand(...args), { location: { file, line, column } });
         });
     }
     for (const method of loggableElement) {
         driver.overwriteCommand(method as any, function (originalCommand, ...args) {
             const { file, line, column } = ctx.info();
-            const title = `$(${this.selector}).${method}(${printableArgs(args)})`;
-            const result = originalCommand(...args);
-            if (!result.then) return result;
-            return ctx.step(title, () => result, { location: { file, line, column } });
+            const title = `$(${printableSelector(this.selector)}).${method}(${printableArgs(args)})`;
+            return ctx.step(title, () => originalCommand(...args), { location: { file, line, column } });
         }, true);
     }
     driver.overwriteCommand('takeScreenshot' as any, function (originalCommand, ...args) {
