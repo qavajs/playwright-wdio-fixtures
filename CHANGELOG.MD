@@ -14,6 +14,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 :microscope: - experimental
 
+## [Unreleased]
+- :pencil: introduced `StringAsymentric` type alias (`string | ReturnType<typeof expect.stringContaining>`) and applied it to `toHaveValue`, `toHaveHref`, `toHaveLink`, `toHaveId`, `toHaveText`, `toHaveHTML`, and `toHaveElementProperty` for better type safety with asymmetric matchers
+- :beetle: fixed `toBeElementsArrayOfSize` receiving `ChainablePromiseElement[]` instead of `ChainablePromiseArray`, aligning the type with WebdriverIO's actual `$$` return value
+
 ## [1.2.0]
 - :rocket: improved step title logging in `createWdioDriverProxy`:
   - `printableArgs` now renders small arrays inline (e.g. `["foo", "bar"]`) and compact JSON for small objects instead of the generic `array` / `object` tokens
