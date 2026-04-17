@@ -1,5 +1,5 @@
 import { test as baseTest, expect as baseExpect, ExpectMatcherState } from '@playwright/test';
-import { remote, Browser, ChainablePromiseElement } from 'webdriverio';
+import { remote, Browser, ChainablePromiseElement, ChainablePromiseArray } from 'webdriverio';
 import { createWdioDriverProxy } from './WdioBrowser';
 
 /** Options accepted by `webdriverio.remote()`. Re-exported for consumer convenience. */
@@ -186,6 +186,8 @@ const isDisplayed = (received: ChainablePromiseElement) => () => received.isDisp
  */
 const either = (left: string, right: string) => (isTrue: boolean) => isTrue ? left : right;
 
+type StringAsymentric = string | ReturnType<typeof baseExpect.stringContaining>;
+
 /**
  * Playwright `expect` extended with WebdriverIO-compatible element and browser matchers.
  *
@@ -321,32 +323,32 @@ export const expect = baseExpect.extend({
         return verify(this, hasClass, expectedResult, options, 'toHaveElementClass');
     },
 
-    async toHaveElementProperty(received: ChainablePromiseElement, prop: string, expected?: any, options: PollExpectOptions = {}) {
+    async toHaveElementProperty(received: ChainablePromiseElement, prop: string, expected?: StringAsymentric, options: PollExpectOptions = {}) {
         return verify(this, () => received.getProperty(prop), expected, options, 'toHaveElementProperty');
     },
 
-    async toHaveValue(received: ChainablePromiseElement, expected?: string, options: PollExpectOptions = {}) {
+    async toHaveValue(received: ChainablePromiseElement, expected: StringAsymentric, options: PollExpectOptions = {}) {
         return verify(this, () => received.getValue(), expected, options, 'toHaveValue');
     },
 
-    async toHaveHref(received: ChainablePromiseElement, expected?: string, options: PollExpectOptions = {}) {
+    async toHaveHref(received: ChainablePromiseElement, expected: StringAsymentric, options: PollExpectOptions = {}) {
         return verify(this, () => received.getAttribute('href'), expected, options, 'toHaveHref');
     },
 
-    async toHaveLink(received: ChainablePromiseElement, expected?: string, options: PollExpectOptions = {}) {
+    async toHaveLink(received: ChainablePromiseElement, expected?: StringAsymentric, options: PollExpectOptions = {}) {
         return verify(this, () => received.getAttribute('href'), expected, options, 'toHaveLink');
     },
 
-    async toHaveId(received: ChainablePromiseElement, expected?: string, options: PollExpectOptions = {}) {
+    async toHaveId(received: ChainablePromiseElement, expected?: StringAsymentric, options: PollExpectOptions = {}) {
         return verify(this, () => received.getAttribute('id'), expected, options, 'toHaveId');
     },
 
     // Content matchers
-    async toHaveText(received: ChainablePromiseElement, expected?: any, options: PollExpectOptions = {}) {
+    async toHaveText(received: ChainablePromiseElement, expected?: StringAsymentric, options: PollExpectOptions = {}) {
         return verify(this, () => received.getText(), expected, options, 'toHaveText');
     },
 
-    async toHaveHTML(received: ChainablePromiseElement, expected?: any, options: PollExpectOptions = {}) {
+    async toHaveHTML(received: ChainablePromiseElement, expected?: StringAsymentric, options: PollExpectOptions = {}) {
         return verify(this, () => received.getHTML(), expected, options, 'toHaveHTML');
     },
 
@@ -405,7 +407,7 @@ export const expect = baseExpect.extend({
     },
 
     // Collection matchers
-    async toBeElementsArrayOfSize(received: ChainablePromiseElement[], expected: number, options: PollExpectOptions = {}) {
+    async toBeElementsArrayOfSize(received: ChainablePromiseArray, expected: number, options: PollExpectOptions = {}) {
         const getLength = () => Promise.resolve(received.length);
         return verify(this, getLength, expected, options, 'toBeElementsArrayOfSize');
     },
