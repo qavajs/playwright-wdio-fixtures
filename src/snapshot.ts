@@ -16,61 +16,65 @@ import type { TestInfo } from '@playwright/test';
  */
 export function attachScreenshot(testInfo: TestInfo & { _tracing: any }, data: string) {
     try {
-    const id = randomUUID();
-    const traceEvents: any[] = testInfo._tracing._traceEvents;
-    const lastEvent = traceEvents.findLast(trace => trace.type === 'after') ?? {endTime: 0};
-    const parent = traceEvents.findLast(
-        (beforeTrace, index, arr) => beforeTrace.type === 'before' && !arr.some(afterTrace => afterTrace.type === 'after' && beforeTrace.callId === afterTrace.callId)
-    );
-    traceEvents.push({
-        type: 'before',
-        callId: `screenshot@${id}`,
-        startTime: lastEvent.endTime + 1,
-        class: 'Test',
-        method: 'Attachment',
-        params: {},
-        stepId: id,
-        pageId: 'page@1',
-        parentId: parent?.callId
-    });
-    traceEvents.push({
-        type: 'after',
-        callId: `screenshot@${id}`,
-        endTime: lastEvent.endTime + 1,
-        result: {},
-        afterSnapshot: `after@screenshot@${id}`
-    });
-    traceEvents.push({
-        type: 'frame-snapshot',
-        snapshot: {
+        const id = randomUUID();
+        const traceEvents: any[] = testInfo._tracing._traceEvents;
+        const lastEvent = traceEvents.findLast(trace => trace.type === 'after') ?? { endTime: 0 };
+        const parent = traceEvents.findLast(
+            (beforeTrace, index, arr) => beforeTrace.type === 'before' && !arr.some(afterTrace => afterTrace.type === 'after' && beforeTrace.callId === afterTrace.callId)
+        );
+        traceEvents.push({
+            type: 'before',
             callId: `screenshot@${id}`,
-            snapshotName: `after@screenshot@${id}`,
+            startTime: lastEvent.endTime + 1,
+            class: 'Test',
+            method: 'Attachment',
+            title: 'Screenshot',
+            params: {},
+            stepId: id,
             pageId: 'page@1',
-            frameId: 'frame@1',
-            frameUrl: 'Screenshot',
-            doctype: 'html',
-            html: ['HTML', {'lang': 'en'},
-                ['HEAD', {},
-                    ['BASE', {'href': 'Screenshot'}],
-                    ['META', {'charset': 'utf-8'}],
-                    ['TITLE', {}, 'Screenshot']
-                ],
-                ['BODY', {'style': `margin: 0; display:flex; justify-content:center; align-items:center; height:100vh;`},
-                    ['DIV', {'style': `display: flex; justify-content: center; align-items: center; height: 100vh;`},
-                        ['IMG', { '__playwright_current_src__': `data:image/png;base64,${data}`, 'style': 'display: block; object-fit: cover; height: 100%; width: 100%;' }]
+            parentId: parent?.callId
+        });
+        traceEvents.push({
+            type: 'after',
+            callId: `screenshot@${id}`,
+            endTime: lastEvent.endTime + 1,
+            result: {},
+            afterSnapshot: `after@screenshot@${id}`
+        });
+        traceEvents.push({
+            type: 'frame-snapshot',
+            snapshot: {
+                callId: `screenshot@${id}`,
+                // trace v9 (playwright >= 1.63) links snapshots to actions via `phase`
+                phase: 'after',
+                // `snapshotName` is the v8 link, kept for older playwright versions
+                snapshotName: `after@screenshot@${id}`,
+                pageId: 'page@1',
+                frameId: 'frame@1',
+                frameUrl: 'Screenshot',
+                doctype: 'html',
+                html: ['HTML', { 'lang': 'en' },
+                    ['HEAD', {},
+                        ['BASE', { 'href': 'Screenshot' }],
+                        ['META', { 'charset': 'utf-8' }],
+                        ['TITLE', {}, 'Screenshot']
                     ],
-                ]
-            ],
-            viewport: {
-                'width': 1280, 'height': 720
-            },
-            timestamp: 1,
-            wallTime: 1,
-            collectionTime: 1,
-            resourceOverrides: [],
-            isMainFrame: true
-        }
-    });
+                    ['BODY', { 'style': `margin: 0; display:flex; justify-content:center; align-items:center; height:100vh;` },
+                        ['DIV', { 'style': `display: flex; justify-content: center; align-items: center; height: 100vh;` },
+                            ['IMG', { '__playwright_current_src__': `data:image/png;base64,${data}`, 'style': 'display: block; object-fit: cover; height: 100%; width: 100%;' }]
+                        ],
+                    ]
+                ],
+                viewport: {
+                    'width': 1280, 'height': 720
+                },
+                timestamp: 1,
+                wallTime: 1,
+                collectionTime: 1,
+                resourceOverrides: [],
+                isMainFrame: true
+            }
+        });
     } catch {
         console.warn('Playwright internal tracing API unavailable; screenshot attachment skipped.');
     }

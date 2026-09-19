@@ -14,7 +14,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 :microscope: - experimental
 
-## [Unreleased]
+## [1.3.0]
+- :beetle: fixed screenshots not being displayed in the trace viewer on playwright 1.63+ (trace format v9), which links snapshots to actions via `snapshot.phase` instead of the `afterSnapshot` / `snapshotName` pair; both are now emitted so older playwright versions keep working
+- :pencil: injected screenshot action now carries a `title` so it is labelled in the trace viewer action list
 - :pencil: introduced `StringAsymentric` type alias (`string | ReturnType<typeof expect.stringContaining>`) and applied it to `toHaveValue`, `toHaveHref`, `toHaveLink`, `toHaveId`, `toHaveText`, `toHaveHTML`, and `toHaveElementProperty` for better type safety with asymmetric matchers
 - :beetle: fixed `toBeElementsArrayOfSize` receiving `ChainablePromiseElement[]` instead of `ChainablePromiseArray`, aligning the type with WebdriverIO's actual `$$` return value
 
