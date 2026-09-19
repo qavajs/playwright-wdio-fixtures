@@ -1,6 +1,7 @@
 import type { Browser } from 'webdriverio';
 import type { TestType } from '@playwright/test';
 import { attachScreenshot } from './snapshot';
+import { reportStep } from './steps';
 
 const loggableBrowser = [
     'addInitScript',
@@ -165,12 +166,15 @@ function printableSelector(selector: unknown): string {
  * For every command listed in {@link loggableBrowser} and {@link loggableElement}, the original
  * implementation is replaced via `browser.overwriteCommand` with a wrapper that:
  *
- * 1. Reads the current source location from `ctx.info()`.
- * 2. Builds a human-readable title (`driver.<method>(args)` or `$(<selector>).<method>(args)`).
+ * 1. Builds a human-readable title (`driver.<method>(args)` or `$(<selector>).<method>(args)`).
  *    Arguments are formatted by {@link printableArgs}; element selectors by {@link printableSelector}.
- * 3. Delegates to `ctx.step()`, which registers the call as a named step in Playwright's trace.
- *    The original command is invoked *inside* the step callback so that step timing accurately
- *    covers the full command execution.
+ * 2. Delegates to {@link reportStep}, which registers the call as a named step in Playwright's
+ *    trace at the current source location. The original command is invoked *inside* the step
+ *    callback so that step timing accurately covers the full command execution.
+ *
+ * Only the outermost command produces a step. WebdriverIO commands delegate to each other
+ * internally, and reporting those too buries the call the test actually made under several levels
+ * of WebdriverIO implementation detail.
  *
  * The `takeScreenshot` command receives additional handling: after the screenshot is taken the
  * resulting base64 data is forwarded to {@link attachScreenshot} so it appears as an image frame
@@ -183,26 +187,22 @@ function printableSelector(selector: unknown): string {
 export function createWdioDriverProxy(driver: Browser, ctx: TestType<any, any>) {
     for (const method of loggableBrowser) {
         driver.overwriteCommand(method as any, function (originalCommand, ...args) {
-            const { file, line, column } = ctx.info();
             const title = `driver.${method}(${printableArgs(args)})`;
-            return ctx.step(title, () => originalCommand(...args), { location: { file, line, column } });
+            return reportStep(ctx, title, () => originalCommand(...args));
         });
     }
     for (const method of loggableElement) {
         driver.overwriteCommand(method as any, function (originalCommand, ...args) {
-            const { file, line, column } = ctx.info();
             const title = `$(${printableSelector(this.selector)}).${method}(${printableArgs(args)})`;
-            return ctx.step(title, () => originalCommand(...args), { location: { file, line, column } });
+            return reportStep(ctx, title, () => originalCommand(...args));
         }, true);
     }
     driver.overwriteCommand('takeScreenshot' as any, function (originalCommand, ...args) {
-        const { file, line, column } = ctx.info();
-        const title = `driver.takeScreenshot()`;
-        return ctx.step(title, async () => {
+        return reportStep(ctx, `driver.takeScreenshot()`, async () => {
             const base64 = await originalCommand(...args);
             attachScreenshot(ctx.info() as any, base64);
             return base64;
-        }, { location: { file, line, column } });
+        });
     });
     return driver;
 }
