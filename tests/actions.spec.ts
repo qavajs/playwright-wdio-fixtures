@@ -120,6 +120,7 @@ test('switchFrame', async ({ driver, app }) => {
 });
 
 test('switchFrame nested', async ({ driver, app }) => {
+    await driver.switchFrame(null);
     await driver.switchFrame('frame.html');
     await driver.switchFrame('innerFrame.html');
     await expect(app.innerFrameElement).toBeVisible();
