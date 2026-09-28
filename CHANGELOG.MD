@@ -14,6 +14,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 :microscope: - experimental
 
+## [1.4.1]
+- :beetle: fixed polling assertions (`expect(el).toBeEnabled()`, `toHaveAttribute`, etc.) failing immediately instead of retrying when the underlying WebdriverIO getter throws, e.g. because the element doesn't exist yet — `verify` now retries a thrown error the same as an unsatisfied value, up to the same timeout, for positive assertions; a negated assertion (`.not.*`) still resolves immediately on error, since a getter that can't read the element's state already satisfies "not"
+- :beetle: fixed `npm publish` shipping `report/`, `test-results/`, and local editor settings whenever run manually after a local test run — `.npmignore` shadowed `.gitignore` entirely and didn't exclude them. Replaced it with an explicit `"files": ["lib"]` allowlist in `package.json`
+- :pencil: added a `prepublishOnly` script that runs `npm run build`, so publishing can no longer ship a stale or missing `lib/`
+- :pencil: removed the unused `takeScreenshot` export from `src/snapshot.ts`; `WdioBrowser.ts` already attaches screenshots directly via `attachScreenshot`, leaving this helper dead code
+- :pencil: fixed the README's `reuseSession` example, which set it as a sibling of `wdioLaunchOptions` instead of nesting it inside — the actual option type
+- :pencil: ported `tests/takeScreenshot.spec.ts` off the external `saucedemo.com` and onto the local `actions.html` fixture, and un-skipped it
+
 ## [1.4.0]
 - :rocket: flattened the playwright trace: across the test suite, maximum step depth dropped from 6 to 2 and total step count by 27%
   - WebdriverIO commands delegate to each other internally (`setValue` → `clearValue` + `addValue`, `getHTML` → `execute` → `waitForExist` → `waitUntil` → `isExisting`), and every one of those calls went through the same `overwriteCommand` wrapper — burying the call the test actually made under several levels of WebdriverIO implementation detail. Only the outermost command is reported now

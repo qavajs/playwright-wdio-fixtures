@@ -157,7 +157,10 @@ function equals(actual: unknown, expected: unknown): boolean {
  *
  * Re-reads `getter` until its value satisfies `expected` (or stops satisfying it, for a negated
  * assertion such as `expect(el).not.toBeDisplayed()`), giving up after `options.timeout`
- * milliseconds. An exception thrown by `getter` is final and is not retried.
+ * milliseconds. An exception thrown by `getter` (e.g. querying a not-yet-rendered element) is
+ * retried the same as an unsatisfied value for a positive assertion, since it may resolve once the
+ * page catches up; for a negated assertion it is treated as an immediate pass, since a getter that
+ * cannot read the element's state is itself evidence the assertion's positive counterpart doesn't hold.
  *
  * Polling is deliberately hand-rolled instead of delegating to `baseExpect.poll()`: `poll` invokes
  * the underlying matcher once per attempt, and each invocation opens its own step, so a single
@@ -186,9 +189,13 @@ async function verify(expectContext: ExpectMatcherState, getter: () => Promise<u
         for (let attempt = 0; ; attempt++) {
             try {
                 actual = await getter();
+                error = undefined;
             } catch (e: any) {
                 error = e;
-                return;
+                if (expectContext.isNot) return;
+                if (Date.now() >= deadline) return;
+                await new Promise(resolve => setTimeout(resolve, intervals[Math.min(attempt, intervals.length - 1)]));
+                continue;
             }
             satisfied = equals(actual, expected) !== expectContext.isNot;
             if (satisfied || Date.now() >= deadline) return;
