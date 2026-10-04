@@ -1,18 +1,18 @@
-import { expect, test } from '../src';
+import { test, expect } from './fixture';
+import { resolve } from 'node:path';
 
-test.skip('takeScreenshot', async ({ $, driver }) => {
-    await driver.url('https://www.saucedemo.com/');
+test.beforeEach(async ({ driver }) => {
+    await driver.url(`file:///${resolve(__dirname, './apps/actions.html')}`);
+});
+
+test('takeScreenshot across a multi-step flow', async ({ app, driver }) => {
     await driver.setWindowSize(400, 1200);
     await driver.takeScreenshot();
-    const username = $('#user-name');
-    await expect(username).toExist();
-    await username.addValue('standard_user');
+    await expect(app.input).toExist();
+    await app.input.addValue('someText');
+    await expect(app.action).toHaveText('someText');
     await driver.takeScreenshot();
-    const password = $('#password');
-    await password.addValue('secret_sauce');
-    await driver.takeScreenshot();
-    const loginButton = $('#login-button');
-    await loginButton.click();
-    await expect(username).toBeHidden();
+    await app.button.click();
+    await expect(app.action).toHaveText('click');
     await driver.takeScreenshot();
 });

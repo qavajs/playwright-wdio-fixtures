@@ -1,4 +1,3 @@
-import type { Browser } from 'webdriverio';
 import { randomUUID } from 'node:crypto';
 import type { TestInfo } from '@playwright/test';
 
@@ -78,19 +77,4 @@ export function attachScreenshot(testInfo: TestInfo & { _tracing: any }, data: s
     } catch {
         console.warn('Playwright internal tracing API unavailable; screenshot attachment skipped.');
     }
-}
-/**
- * Takes a screenshot via WebdriverIO and attaches it to the Playwright trace.
- *
- * Intended to be bound as a method on a WebdriverIO `Browser` instance (the `this` context).
- * Calls `browser.takeScreenshot()` and forwards the resulting base64 data to {@link attachScreenshot}.
- *
- * @param this - The WebdriverIO `Browser` instance used to capture the screenshot.
- * @param testInfo - The Playwright `TestInfo` object for the currently-running test.
- * @returns The base64-encoded PNG string returned by WebdriverIO.
- */
-export async function takeScreenshot(this: Browser, testInfo: TestInfo & { _tracing: any }) {
-    const screenshot = await this.takeScreenshot();
-    attachScreenshot(testInfo, screenshot);
-    return screenshot;
 }

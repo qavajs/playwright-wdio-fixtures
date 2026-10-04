@@ -143,8 +143,8 @@ In this mode browser will be created in worker scope and shared between steps
         {
             name: 'debug',
             use: {
-                reuseSession: true,
                 wdioLaunchOptions: {
+                    reuseSession: true,
                     logLevel: 'error',
                     capabilities: {
                         browserName: 'chrome'
