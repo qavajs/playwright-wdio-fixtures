@@ -11,7 +11,6 @@ const loggableBrowser = [
     'downloadFile',
     'emulate',
     'execute',
-    'executeAsync',
     'getContext',
     'getContexts',
     'getCookies',
@@ -44,7 +43,6 @@ const loggableBrowser = [
     'throttle',
     'throttleCPU',
     'throttleNetwork',
-    'touchAction',
     'uploadFile',
     'url',
     'waitUntil',
@@ -55,7 +53,6 @@ const loggableElement = [
     'doubleClick',
     'dragAndDrop',
     'execute',
-    'executeAsync',
     'getCSSProperty',
     'getComputedLabel',
     'getComputedRole',
@@ -84,7 +81,6 @@ const loggableElement = [
     'selectByVisibleText',
     'setValue',
     'tap',
-    'touchAction',
     'waitForClickable',
     'waitForEnabled',
     'waitForExist',
@@ -186,16 +182,18 @@ function printableSelector(selector: unknown): string {
  */
 export function createWdioDriverProxy(driver: Browser, ctx: TestType<any, any>) {
     for (const method of loggableBrowser) {
+        // skip commands that are not available in the installed WebdriverIO version
+        if (!(method in driver)) continue;
         driver.overwriteCommand(method as any, function (originalCommand, ...args) {
             const title = `driver.${method}(${printableArgs(args)})`;
             return reportStep(ctx, title, () => originalCommand(...args));
         });
     }
     for (const method of loggableElement) {
-        driver.overwriteCommand(method as any, function (originalCommand, ...args) {
+        driver.overwriteCommand(method as any, function (this: WebdriverIO.Element, originalCommand, ...args) {
             const title = `$(${printableSelector(this.selector)}).${method}(${printableArgs(args)})`;
             return reportStep(ctx, title, () => originalCommand(...args));
-        }, true);
+        }, { attachToElement: true });
     }
     driver.overwriteCommand('takeScreenshot' as any, function (originalCommand, ...args) {
         return reportStep(ctx, `driver.takeScreenshot()`, async () => {

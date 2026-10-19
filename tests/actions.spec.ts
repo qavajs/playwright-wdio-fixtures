@@ -101,11 +101,9 @@ test('keys', async ({ app, driver }) => {
 });
 
 test('newWindow', async ({ driver }) => {
-    await driver.newWindow('about:blank', {
-        type:'tab',
-        windowName: 'Test',
-    });
+    const tab = await driver.newWindow('about:blank', { type: 'tab' }) as WebdriverIO.BrowsingContext;
     const handles = await driver.getWindowHandles();
+    await tab.closeWindow();
     expect(handles.length).toBe(2);
 });
 
@@ -114,22 +112,24 @@ test('scroll', async ({ driver, app }) => {
     expect(await app.keyboardEventHandler.isDisplayed({ withinViewport: true })).toBe(true);
 });
 
-test('switchFrame', async ({ driver, app }) => {
-    await driver.switchFrame('frame.html');
-    await expect(app.frameElement).toBeVisible();
+test('frame', async ({ driver }) => {
+    const [page] = await driver.browsingContexts();
+    const frame = await page.frame({ selector: '#firstIframe' });
+    await expect(frame.$('#frameElement')).toBeDisplayed();
 });
 
-test('switchFrame nested', async ({ driver, app }) => {
-    await driver.switchFrame(null);
-    await driver.switchFrame('frame.html');
-    await driver.switchFrame('innerFrame.html');
-    await expect(app.innerFrameElement).toBeVisible();
+test('frame nested', async ({ driver }) => {
+    const [page] = await driver.browsingContexts();
+    const frame = await page.frame({ selector: '#firstIframe' });
+    const innerFrame = await frame.frame({ selector: '#innerIframe' });
+    await expect(innerFrame.$('#innerFrameElement')).toBeDisplayed();
 });
 
-test('switchWindow', async ({ driver }) => {
-    await driver.newWindow('about:blank', { type: 'tab' });
-    await driver.switchWindow('about:blank');
-    expect(await driver.getUrl()).toBe('about:blank');
+test('browsing context of new window', async ({ driver }) => {
+    const tab = await driver.newWindow('about:blank', { type: 'tab' }) as WebdriverIO.BrowsingContext;
+    const url = await tab.getUrl();
+    await tab.closeWindow();
+    expect(url).toBe('about:blank');
 });
 
 test('doubleClick', async ({ app }) => {

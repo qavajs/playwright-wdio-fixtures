@@ -14,6 +14,13 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 :microscope: - experimental
 
+## [2.0.0]
+- :rocket: added WebdriverIO 10 support
+- :x: dropped step reporting for `executeAsync` and `touchAction`, which WebdriverIO 10 removed; a command missing from the installed WebdriverIO version is now skipped instead of being overwritten
+- :pencil: element commands are now overwritten with the WebdriverIO 10 `{ attachToElement: true }` options object in place of the positional boolean
+- :pencil: replaced the `switchFrame` and `switchWindow` tests with WebdriverIO 10 browsing-context equivalents (`browsingContexts()`, `frame()`, `newWindow()` returning a context)
+- :pencil: updated dev dependencies: `webdriverio` 10.1.0, `@playwright/test` 1.64.1, `@types/node` 26.6.5
+
 ## [1.4.1]
 - :beetle: fixed polling assertions (`expect(el).toBeEnabled()`, `toHaveAttribute`, etc.) failing immediately instead of retrying when the underlying WebdriverIO getter throws, e.g. because the element doesn't exist yet — `verify` now retries a thrown error the same as an unsatisfied value, up to the same timeout, for positive assertions; a negated assertion (`.not.*`) still resolves immediately on error, since a getter that can't read the element's state already satisfies "not"
 - :beetle: fixed `npm publish` shipping `report/`, `test-results/`, and local editor settings whenever run manually after a local test run — `.npmignore` shadowed `.gitignore` entirely and didn't exclude them. Replaced it with an explicit `"files": ["lib"]` allowlist in `package.json`
