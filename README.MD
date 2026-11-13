@@ -115,12 +115,32 @@ You can use extended matchers on WebdriverIO elements, such as:
 - `toHaveAttribute`
 - `toHaveElementClass`
 - `toHaveId`
-- `toHaveProperty`
+- `toHaveElementProperty`
 - `toHaveUrl`
 - `toHaveTitle`
 - ...and more
 
-See [`tests/expect.spec.ts`](tests/expect.spec.ts) for examples.
+String expectations accept an exact string, a `RegExp` or an asymmetric matcher:
+
+```ts
+await expect($('h1')).toHaveText(/welcome/i);
+await expect(driver).toHaveUrl(expect.stringContaining('/inventory'));
+```
+
+When the expected value is omitted, `toHaveAttribute`, `toHaveElementProperty`, `toHaveLink`, `toHaveId`, `toHaveText` and `toHaveHTML` only check that the value is present:
+
+```ts
+await expect($('a')).toHaveAttribute('href');
+await expect($('#message')).toHaveText(); // any non-empty text
+```
+
+Every matcher retries until it passes or its timeout expires, and accepts `{ timeout, intervals, message }` as its last argument. A matcher whose element can't be found fails, including negated ones such as `.not.toHaveText()`.
+
+See [`tests/expect.spec.ts`](tests/expect.spec.ts) and [`tests/matchers.spec.ts`](tests/matchers.spec.ts) for examples.
+
+### Screenshots
+
+`driver.takeScreenshot()` shows the screenshot as a frame in the Playwright trace viewer. When no trace is being recorded for the test, the screenshot is attached to the test instead, so it still appears in the HTML report.
 
 ## Example
 
@@ -161,6 +181,8 @@ In this mode browser will be created in worker scope and shared between steps
 - `npm run build` — Compile TypeScript to `lib/`
 - `npm test` — Run Playwright tests
 - `npm run debug` — Run Playwright UI mode
+- `npm run typecheck` — Type-check sources and tests
+- `npm run lint` — Lint with Biome
 
 ## License
 

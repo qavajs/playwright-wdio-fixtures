@@ -14,6 +14,19 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 :microscope: - experimental
 
+## [Unreleased]
+- :rocket: string matchers (`toHaveText`, `toHaveValue`, `toHaveUrl`, `toHaveTitle`, etc.) accept a `RegExp`
+- :rocket: `takeScreenshot` attaches the image with `testInfo.attach()` when no trace is recorded or Playwright's internal tracing API is unavailable; trace frames use the screenshot's real dimensions instead of a fixed 1280×720
+- :beetle: `toHaveAttribute`, `toHaveAttr`, `toHaveElementProperty`, `toHaveLink`, `toHaveId`, `toHaveText` and `toHaveHTML` called without an expected value now check that the value is present, instead of always failing
+- :beetle: `toBeElementsArrayOfSize` re-runs the `$$` query on every poll instead of re-reading the first result
+- :beetle: a negated assertion whose getter throws (e.g. the element doesn't exist) is now retried until the timeout and then fails with that error, instead of failing immediately
+- :beetle: each polling attempt is bounded by the assertion's remaining time, so WebdriverIO's implicit `waitforTimeout` no longer stretches an assertion past its own `timeout`
+- :beetle: command steps link to the line in the test that issued the command instead of the `test(...)` declaration
+- :beetle: step titles show numbers and booleans unquoted and escape quotes in array items
+- :pencil: published source maps embed the TypeScript sources
+- :pencil: added Biome linting, a `typecheck` script covering tests, and CI on pushes to `main`; the publish workflow now runs lint, type-check and tests, and publishes with provenance
+- :pencil: updated dev dependencies: `webdriverio` 10.2.0, `@playwright/test` 1.65.0, `@types/node` 26.6.6
+
 ## [2.0.0]
 - :rocket: added WebdriverIO 10 support
 - :x: dropped step reporting for `executeAsync` and `touchAction`, which WebdriverIO 10 removed; a command missing from the installed WebdriverIO version is now skipped instead of being overwritten

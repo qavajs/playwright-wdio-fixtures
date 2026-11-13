@@ -7,14 +7,12 @@
     "strict": true,
     "skipLibCheck": true,
     "sourceMap": true,
+    "inlineSources": true,
     "rootDir": "src",
     "outDir": "lib",
     "declaration": true
   },
   "include": [
     "src/**/*.ts"
-  ],
-  "exclude": [
-    "test/**/*.spec.ts"
   ]
 }

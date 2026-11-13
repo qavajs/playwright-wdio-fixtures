@@ -1,5 +1,5 @@
-import { test as baseTest, expect as baseExpect, ExpectMatcherState } from '@playwright/test';
-import { remote, Browser, ChainablePromiseElement, ChainablePromiseArray } from 'webdriverio';
+import { test as baseTest, expect as baseExpect, type ExpectMatcherState } from '@playwright/test';
+import { remote, type Browser, type ChainablePromiseElement, type ChainablePromiseArray } from 'webdriverio';
 import { createWdioDriverProxy } from './WdioBrowser';
 import { withoutSteps } from './steps';
 
@@ -63,7 +63,7 @@ type AdditionalWdioOptions = {
  *
  * @example
  * ```ts
- * import { test } from '@qavajs/playwright-wdio-fixtures';
+ * import { test, expect } from '@qavajs/playwright-wdio-fixtures';
  *
  * test('navigate', async ({ driver, $ }) => {
  *   await driver.url('https://example.com');
@@ -122,6 +122,12 @@ type PollExpectOptions = {
 /** Retry delays used when {@link PollExpectOptions.intervals} is not supplied. */
 const DEFAULT_INTERVALS = [100, 250, 500, 1000];
 
+/**
+ * Lower bound for how long a single attempt may run once the deadline is (nearly) reached, so the
+ * last attempt still gets a fair chance to answer instead of being cut off immediately.
+ */
+const MIN_ATTEMPT_MS = 250;
+
 /** Detects a jest/Playwright asymmetric matcher such as `expect.stringContaining('x')`. */
 function isAsymmetricMatcher(value: unknown): value is { asymmetricMatch(other: unknown): boolean } {
     return typeof (value as { asymmetricMatch?: unknown } | null)?.asymmetricMatch === 'function';
@@ -134,12 +140,21 @@ function definedKeys(value: object): string[] {
 
 /**
  * `toEqual`-style structural comparison: recurses into arrays and plain objects, ignores properties
- * explicitly set to `undefined`, and defers to asymmetric matchers wherever they appear.
+ * explicitly set to `undefined`, and defers to asymmetric matchers wherever they appear. A `RegExp`
+ * expectation is tested against a string value, the way Playwright's `toHaveText(/re/)` works.
  *
  * {@link verify} compares with this rather than calling `expect` on every poll — see the note there.
  */
 function equals(actual: unknown, expected: unknown): boolean {
     if (isAsymmetricMatcher(expected)) return expected.asymmetricMatch(actual);
+    if (expected instanceof RegExp) {
+        if (typeof actual === 'string') {
+            // a global/sticky regexp is stateful; reset it so every poll tests from the start
+            expected.lastIndex = 0;
+            return expected.test(actual);
+        }
+        return actual instanceof RegExp && String(actual) === String(expected);
+    }
     if (actual === expected || Object.is(actual, expected)) return true;
     if (Array.isArray(expected)) {
         return Array.isArray(actual)
@@ -152,15 +167,36 @@ function equals(actual: unknown, expected: unknown): boolean {
         && expectedKeys.every(key => equals((actual as Record<string, unknown>)[key], (expected as Record<string, unknown>)[key]));
 }
 
+/** Marker returned by {@link withinTime} when the wrapped promise did not settle in time. */
+const TIMED_OUT = Symbol('timed out');
+
+/**
+ * Resolves with `promise`'s value, or with {@link TIMED_OUT} once `ms` elapses first. The losing
+ * promise keeps running in the background, so its eventual rejection is swallowed here.
+ */
+function withinTime<T>(promise: Promise<T>, ms: number): Promise<T | typeof TIMED_OUT> {
+    promise.catch(() => {});
+    let timer: NodeJS.Timeout;
+    const timeout = new Promise<typeof TIMED_OUT>(resolve => { timer = setTimeout(() => resolve(TIMED_OUT), ms); });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, Math.max(ms, 0)));
+
 /**
  * Core polling assertion helper used by every custom matcher in this module.
  *
  * Re-reads `getter` until its value satisfies `expected` (or stops satisfying it, for a negated
  * assertion such as `expect(el).not.toBeDisplayed()`), giving up after `options.timeout`
  * milliseconds. An exception thrown by `getter` (e.g. querying a not-yet-rendered element) is
- * retried the same as an unsatisfied value for a positive assertion, since it may resolve once the
- * page catches up; for a negated assertion it is treated as an immediate pass, since a getter that
- * cannot read the element's state is itself evidence the assertion's positive counterpart doesn't hold.
+ * retried the same as an unsatisfied value, for positive and negated assertions alike, since it may
+ * resolve once the page catches up. If it still throws at the deadline, the assertion fails with
+ * that error — a getter that cannot read the element's state proves neither the assertion nor its
+ * negation, so a mistyped selector never makes a `.not` assertion pass.
+ *
+ * Each attempt is bounded by the remaining time: WebdriverIO element commands implicitly wait up
+ * to `waitforTimeout` for a missing element, and without the bound a single attempt could keep the
+ * assertion waiting well past its own `timeout`.
  *
  * Polling is deliberately hand-rolled instead of delegating to `baseExpect.poll()`: `poll` invokes
  * the underlying matcher once per attempt, and each invocation opens its own step, so a single
@@ -171,7 +207,8 @@ function equals(actual: unknown, expected: unknown): boolean {
  *
  * @param expectContext - The `ExpectMatcherState` provided by Playwright to the custom matcher.
  * @param getter - An async factory that reads the current element/browser state.
- * @param expected - The expected value; may be an asymmetric matcher such as `expect.stringContaining('x')`.
+ * @param expected - The expected value; may be a `RegExp` or an asymmetric matcher such as
+ *   `expect.stringContaining('x')`.
  * @param options - Polling options (timeout, intervals, message).
  * @param assertionName - The matcher name used in failure messages (e.g. `'toBeDisplayed'`).
  * @returns A Playwright custom-matcher result object.
@@ -188,18 +225,23 @@ async function verify(expectContext: ExpectMatcherState, getter: () => Promise<u
     await withoutSteps(async () => {
         for (let attempt = 0; ; attempt++) {
             try {
-                actual = await getter();
+                const result = await withinTime(getter(), Math.max(deadline - Date.now(), MIN_ATTEMPT_MS));
+                if (result === TIMED_OUT) {
+                    // keep the last value or error we did read; only report the hang if we read nothing
+                    if (attempt === 0) {
+                        error = new Error(`WebdriverIO command did not finish within ${timeout}ms`);
+                    }
+                    return;
+                }
+                actual = result;
                 error = undefined;
+                satisfied = equals(actual, expected) !== expectContext.isNot;
             } catch (e: any) {
                 error = e;
-                if (expectContext.isNot) return;
-                if (Date.now() >= deadline) return;
-                await new Promise(resolve => setTimeout(resolve, intervals[Math.min(attempt, intervals.length - 1)]));
-                continue;
+                satisfied = false;
             }
-            satisfied = equals(actual, expected) !== expectContext.isNot;
             if (satisfied || Date.now() >= deadline) return;
-            await new Promise(resolve => setTimeout(resolve, intervals[Math.min(attempt, intervals.length - 1)]));
+            await sleep(Math.min(intervals[Math.min(attempt, intervals.length - 1)], deadline - Date.now()));
         }
     });
 
@@ -215,13 +257,33 @@ async function verify(expectContext: ExpectMatcherState, getter: () => Promise<u
 
     return {
         message,
-        // Playwright re-applies the negation itself, so report the un-negated outcome.
+        // Playwright re-applies the negation itself, so report the un-negated outcome. A getter that
+        // still errors at the deadline leaves `satisfied` false, which fails both polarities.
         pass: expectContext.isNot ? !satisfied : satisfied,
         name: assertionName,
         expected,
         actual,
     };
 }
+
+/**
+ * Polls for the mere presence of a value, used by matchers whose `expected` argument is optional
+ * (e.g. `toHaveAttribute('href')`). `isPresent` decides what counts as present for that matcher.
+ */
+function verifyPresence(
+    expectContext: ExpectMatcherState,
+    getter: () => Promise<unknown>,
+    what: string,
+    options: PollExpectOptions,
+    assertionName: string,
+    isPresent: (value: unknown) => boolean = value => value !== null && value !== undefined,
+) {
+    const presence = async () => isPresent(await getter()) ? `has ${what}` : `does not have ${what}`;
+    return verify(expectContext, presence, `has ${what}`, options, assertionName);
+}
+
+/** Presence check for text-like values: an empty string means "no text". */
+const nonEmpty = (value: unknown) => typeof value === 'string' ? value.length > 0 : value !== null && value !== undefined;
 
 /** Returns a polling getter that resolves to `'visible'` or `'hidden'` for an element. */
 const isDisplayed = (received: ChainablePromiseElement) => () => received.isDisplayed().then(isVisible => isVisible ? 'visible' : 'hidden');
@@ -234,14 +296,20 @@ const isDisplayed = (received: ChainablePromiseElement) => () => received.isDisp
  */
 const either = (left: string, right: string) => (isTrue: boolean) => isTrue ? left : right;
 
-type StringAsymentric = string | ReturnType<typeof baseExpect.stringContaining>;
+/** A string expectation: an exact string, a `RegExp`, or an asymmetric matcher such as `expect.stringContaining()`. */
+type StringMatcher = string | RegExp | ReturnType<typeof baseExpect.stringContaining>;
 
 /**
  * Playwright `expect` extended with WebdriverIO-compatible element and browser matchers.
  *
- * All matchers use `expect.poll()` internally so they retry until the assertion passes or the
- * configured `timeout` is exceeded. Every matcher accepts an optional {@link PollExpectOptions}
- * as its last argument.
+ * All matchers poll (see {@link verify}) so they retry until the assertion passes or the
+ * configured `timeout` is exceeded, and each contributes a single step to the trace. Every matcher
+ * accepts an optional {@link PollExpectOptions} as its last argument.
+ *
+ * String expectations accept an exact string, a `RegExp`, or an asymmetric matcher such as
+ * `expect.stringContaining()`. Matchers with an optional expected value (`toHaveAttribute`,
+ * `toHaveElementProperty`, `toHaveLink`, `toHaveId`, `toHaveText`, `toHaveHTML`) only check that the
+ * value is present (non-empty for text-like values) when it is omitted.
  *
  * **Element existence and visibility**
  * - `toBeDisplayed` / `toBeVisible` — element is visible in the DOM.
@@ -354,10 +422,12 @@ export const expect = baseExpect.extend({
 
     // Attributes and properties
     async toHaveAttribute(received: ChainablePromiseElement, attr: string, expected?: any, options: PollExpectOptions = {}) {
+        if (expected === undefined) return verifyPresence(this, () => received.getAttribute(attr), `attribute "${attr}"`, options, 'toHaveAttribute');
         return verify(this, () => received.getAttribute(attr), expected, options, 'toHaveAttribute');
     },
 
     async toHaveAttr(received: ChainablePromiseElement, attr: string, expected?: any, options: PollExpectOptions = {}) {
+        if (expected === undefined) return verifyPresence(this, () => received.getAttribute(attr), `attribute "${attr}"`, options, 'toHaveAttr');
         return verify(this, () => received.getAttribute(attr), expected, options, 'toHaveAttr');
     },
 
@@ -370,32 +440,37 @@ export const expect = baseExpect.extend({
         return verify(this, hasClass, baseExpect.arrayContaining(classes), options, 'toHaveElementClass');
     },
 
-    async toHaveElementProperty(received: ChainablePromiseElement, prop: string, expected?: StringAsymentric, options: PollExpectOptions = {}) {
+    async toHaveElementProperty(received: ChainablePromiseElement, prop: string, expected?: StringMatcher, options: PollExpectOptions = {}) {
+        if (expected === undefined) return verifyPresence(this, () => received.getProperty(prop), `property "${prop}"`, options, 'toHaveElementProperty');
         return verify(this, () => received.getProperty(prop), expected, options, 'toHaveElementProperty');
     },
 
-    async toHaveValue(received: ChainablePromiseElement, expected: StringAsymentric, options: PollExpectOptions = {}) {
+    async toHaveValue(received: ChainablePromiseElement, expected: StringMatcher, options: PollExpectOptions = {}) {
         return verify(this, () => received.getValue(), expected, options, 'toHaveValue');
     },
 
-    async toHaveHref(received: ChainablePromiseElement, expected: StringAsymentric, options: PollExpectOptions = {}) {
+    async toHaveHref(received: ChainablePromiseElement, expected: StringMatcher, options: PollExpectOptions = {}) {
         return verify(this, () => received.getAttribute('href'), expected, options, 'toHaveHref');
     },
 
-    async toHaveLink(received: ChainablePromiseElement, expected?: StringAsymentric, options: PollExpectOptions = {}) {
+    async toHaveLink(received: ChainablePromiseElement, expected?: StringMatcher, options: PollExpectOptions = {}) {
+        if (expected === undefined) return verifyPresence(this, () => received.getAttribute('href'), 'link', options, 'toHaveLink', nonEmpty);
         return verify(this, () => received.getAttribute('href'), expected, options, 'toHaveLink');
     },
 
-    async toHaveId(received: ChainablePromiseElement, expected?: StringAsymentric, options: PollExpectOptions = {}) {
+    async toHaveId(received: ChainablePromiseElement, expected?: StringMatcher, options: PollExpectOptions = {}) {
+        if (expected === undefined) return verifyPresence(this, () => received.getAttribute('id'), 'id', options, 'toHaveId', nonEmpty);
         return verify(this, () => received.getAttribute('id'), expected, options, 'toHaveId');
     },
 
     // Content matchers
-    async toHaveText(received: ChainablePromiseElement, expected?: StringAsymentric, options: PollExpectOptions = {}) {
+    async toHaveText(received: ChainablePromiseElement, expected?: StringMatcher, options: PollExpectOptions = {}) {
+        if (expected === undefined) return verifyPresence(this, () => received.getText(), 'text', options, 'toHaveText', nonEmpty);
         return verify(this, () => received.getText(), expected, options, 'toHaveText');
     },
 
-    async toHaveHTML(received: ChainablePromiseElement, expected?: StringAsymentric, options: PollExpectOptions = {}) {
+    async toHaveHTML(received: ChainablePromiseElement, expected?: StringMatcher, options: PollExpectOptions = {}) {
+        if (expected === undefined) return verifyPresence(this, () => received.getHTML(), 'HTML', options, 'toHaveHTML', nonEmpty);
         return verify(this, () => received.getHTML(), expected, options, 'toHaveHTML');
     },
 
@@ -454,17 +529,26 @@ export const expect = baseExpect.extend({
     },
 
     // Collection matchers
-    async toBeElementsArrayOfSize(received: ChainablePromiseArray, expected: number, options: PollExpectOptions = {}) {
-        const getLength = () => Promise.resolve(received.length);
+    async toBeElementsArrayOfSize(received: ChainablePromiseArray | WebdriverIO.ElementArray, expected: number, options: PollExpectOptions = {}) {
+        // An awaited `$$()` result is a snapshot, so re-run the query that produced it on every poll —
+        // otherwise elements that appear (or disappear) after the first read are never seen.
+        const getLength = async () => {
+            const elements = await received;
+            const { parent, foundWith, selector, props } = elements;
+            const query = parent && (parent as unknown as Record<string, unknown>)[foundWith];
+            if (typeof query !== 'function') return elements.length;
+            const refetched = await query.call(parent, selector, ...(props ?? []));
+            return refetched.length;
+        };
         return verify(this, getLength, expected, options, 'toBeElementsArrayOfSize');
     },
 
-    // Browser matchers - keeping the original ones
-    async toHaveUrl(received: Browser, expected: any, options: PollExpectOptions = {}): Promise<any> {
+    // Browser matchers
+    async toHaveUrl(received: Browser, expected: StringMatcher, options: PollExpectOptions = {}) {
         return verify(this, () => received.getUrl(), expected, options, 'toHaveUrl');
     },
 
-    async toHaveTitle(received: Browser, expected: any, options: PollExpectOptions = {}): Promise<any> {
+    async toHaveTitle(received: Browser, expected: StringMatcher, options: PollExpectOptions = {}) {
         return verify(this, () => received.getTitle(), expected, options, 'toHaveTitle');
     }
 });

@@ -103,7 +103,8 @@ const loggableElement = [
  * - `null`     → `null`
  * - Objects    → compact JSON when the serialised form is ≤ 60 chars, `object` otherwise
  * - `undefined`→ `undefined`
- * - Everything else → `String(arg)`
+ * - Numbers, booleans, bigints → unquoted (`1000`, `true`)
+ * - Everything else (strings) → a quoted, escaped JSON string
  *
  * @param args - The raw arguments passed to a WebdriverIO command.
  * @returns A comma-separated string suitable for embedding in a trace step title.
@@ -117,11 +118,12 @@ function printableArgs(args: any[]): string {
         }
         if (Array.isArray(arg)) {
             if (arg.length === 0) return '[]';
-            if (arg.length <= 3) return `[${arg.map(i => typeof i === 'string' ? `"${i}"` : String(i)).join(', ')}]`;
+            if (arg.length <= 3) return `[${arg.map(i => typeof i === 'string' ? JSON.stringify(i) : String(i)).join(', ')}]`;
             return `array[${arg.length}]`;
         }
         if (arg === null) return 'null';
         if (arg === undefined) return 'undefined';
+        if (typeof arg === 'number' || typeof arg === 'boolean' || typeof arg === 'bigint') return String(arg);
         if (typeof arg === 'object') {
             try {
                 const json = JSON.stringify(arg);
@@ -184,7 +186,7 @@ export function createWdioDriverProxy(driver: Browser, ctx: TestType<any, any>) 
     for (const method of loggableBrowser) {
         // skip commands that are not available in the installed WebdriverIO version
         if (!(method in driver)) continue;
-        driver.overwriteCommand(method as any, function (originalCommand, ...args) {
+        driver.overwriteCommand(method as any, (originalCommand, ...args) => {
             const title = `driver.${method}(${printableArgs(args)})`;
             return reportStep(ctx, title, () => originalCommand(...args));
         });
@@ -195,12 +197,10 @@ export function createWdioDriverProxy(driver: Browser, ctx: TestType<any, any>) 
             return reportStep(ctx, title, () => originalCommand(...args));
         }, { attachToElement: true });
     }
-    driver.overwriteCommand('takeScreenshot' as any, function (originalCommand, ...args) {
-        return reportStep(ctx, `driver.takeScreenshot()`, async () => {
+    driver.overwriteCommand('takeScreenshot' as any, (originalCommand, ...args) => reportStep(ctx, `driver.takeScreenshot()`, async () => {
             const base64 = await originalCommand(...args);
-            attachScreenshot(ctx.info() as any, base64);
+            await attachScreenshot(ctx.info(), base64);
             return base64;
-        });
-    });
+        }));
     return driver;
 }
