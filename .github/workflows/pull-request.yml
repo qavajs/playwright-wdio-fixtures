@@ -1,6 +1,9 @@
 name: Test
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
@@ -15,15 +18,17 @@ jobs:
         version: [ 22, 24, 26 ]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.version }}
       - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
       - run: npm run build
       - run: npm run test
       - name: junit report
-        uses: mikepenz/action-junit-report@v4
+        uses: mikepenz/action-junit-report@v6
         if: always()
         with:
           report_paths: './report/report.xml'

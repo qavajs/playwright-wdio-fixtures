@@ -1,5 +1,5 @@
 import { test as baseTest, expect as baseExpect } from '../src';
-import { Browser } from 'webdriverio';
+import type { Browser } from 'webdriverio';
 
 export default class App {
     constructor(private $: Browser['$'], private $$: Browser['$$']) {}
