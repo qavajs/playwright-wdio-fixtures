@@ -14,7 +14,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 :microscope: - experimental
 
-## [Unreleased]
+## [2.1.0]
 - :rocket: string matchers (`toHaveText`, `toHaveValue`, `toHaveUrl`, `toHaveTitle`, etc.) accept a `RegExp`
 - :rocket: `takeScreenshot` attaches the image with `testInfo.attach()` when no trace is recorded or Playwright's internal tracing API is unavailable; trace frames use the screenshot's real dimensions instead of a fixed 1280×720
 - :beetle: `toHaveAttribute`, `toHaveAttr`, `toHaveElementProperty`, `toHaveLink`, `toHaveId`, `toHaveText` and `toHaveHTML` called without an expected value now check that the value is present, instead of always failing
